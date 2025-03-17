@@ -79,7 +79,7 @@ Future<User> createUser(User user) async {
 }
 
 
-  Future<User> updateUser(User user, UserBase64 updatedUser) async {
+  Future<UserBase64> updateUser(User user, UserBase64 updatedUser) async {
     final response = await http.put(
       Uri.parse('$apiUrl/user/${user.id}'),
       headers: {'Content-Type': 'application/json'},
@@ -87,7 +87,7 @@ Future<User> createUser(User user) async {
     );
 
     if (response.statusCode == 200) {
-      return User.fromJson(json.decode(response.body));
+      return UserBase64.fromJson(json.decode(response.body));
     } else {
       throw Exception('Failed to update user');
     }

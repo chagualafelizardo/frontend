@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:app/services/VeiculoImgService.dart';
 import 'package:app/ui/veiculo/ImagePreviewPage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:app/services/VeiculoAddService.dart';
 import 'package:app/models/VeiculoAdd.dart';
@@ -142,7 +143,7 @@ void _saveVeiculo() async {
 }
 
 Future<void> _uploadAdditionalImages(int veiculoId) async {
-  final VeiculoImgService veiculoImgService = VeiculoImgService('http://localhost:5000');
+  final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
   print('Uploading additional images for vehicle ID: $veiculoId');
 
   if (_additionalImages.isEmpty) {

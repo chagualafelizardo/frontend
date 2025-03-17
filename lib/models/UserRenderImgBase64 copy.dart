@@ -1,5 +1,3 @@
-import 'package:app/models/Role.dart';
-
 class UserBase64 {
   final int id;
   final String username;
@@ -17,7 +15,6 @@ class UserBase64 {
   final String? imgBase64;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  final List<Role>? roles; // Adicione este campo
 
   UserBase64({
     required this.id,
@@ -36,7 +33,6 @@ class UserBase64 {
     this.imgBase64,
     this.createdAt,
     this.updatedAt,
-    this.roles, // Adicione este campo
   });
 
   factory UserBase64.fromJson(Map<String, dynamic> json) {
@@ -63,9 +59,6 @@ class UserBase64 {
       updatedAt: json.containsKey('updatedAt') && json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'])
           : null,
-      roles: json['roles'] != null
-          ? (json['roles'] as List).map((role) => Role.fromJson(role)).toList()
-          : null, // Processa as roles
     );
   }
 }

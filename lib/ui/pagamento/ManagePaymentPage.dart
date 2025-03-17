@@ -3,6 +3,7 @@ import 'package:app/models/PaymentCriteria.dart';
 import 'package:app/services/DetalhePagamentoService.dart';
 import 'package:app/services/DetalhesPagamento.dart';
 import 'package:app/services/PaymentCriteriaService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Allocation.dart';
 import 'package:app/models/UserAtendimentoAllocation.dart';
@@ -83,11 +84,11 @@ class AtendimentosTab extends StatefulWidget {
 }
 
 class _AtendimentosTabState extends State<AtendimentosTab> {
-  final AtendimentoService _atendimentoService = AtendimentoService('http://localhost:5000');
-  final ReservaService _reservaService = ReservaService('http://localhost:5000');
-  final VeiculoServiceAdd _veiculoService = VeiculoServiceAdd('http://localhost:5000');
-  final UserService _userService = UserService('http://localhost:5000');
-  final PagamentoService pagamentoService = PagamentoService('http://localhost:5000');
+  final AtendimentoService _atendimentoService = AtendimentoService(dotenv.env['BASE_URL']!);
+  final ReservaService _reservaService = ReservaService(dotenv.env['BASE_URL']!);
+  final VeiculoServiceAdd _veiculoService = VeiculoServiceAdd(dotenv.env['BASE_URL']!);
+  final UserService _userService = UserService(dotenv.env['BASE_URL']!);
+  final PagamentoService pagamentoService = PagamentoService(dotenv.env['BASE_URL']!);
 
   var user, veiculo, state;
 
@@ -231,7 +232,7 @@ class _AtendimentosTabState extends State<AtendimentosTab> {
 void _showCreatePagamentoDialog(BuildContext context, int atendimentoId, int userId, int criterioPagamentoId) {
   TextEditingController valorTotalController = TextEditingController();
   TextEditingController dataPagamentoController = TextEditingController();
-  PaymentCriteriaService paymentCriteriaService = PaymentCriteriaService(baseUrl: 'http://localhost:5000');
+  PaymentCriteriaService paymentCriteriaService = PaymentCriteriaService(baseUrl: dotenv.env['BASE_URL']!);
 
   // Variable to store payment criteria
   List<PaymentCriteria> paymentCriteriaList = [];
@@ -427,7 +428,7 @@ void _showCreatePagamentoDialog(BuildContext context, int atendimentoId, int use
 );
 }
 
-  Widget _buildAtendimentoCard(Atendimento atendimento) {
+Widget _buildAtendimentoCard(Atendimento atendimento) {
   final DateTime? dataChegada = atendimento.dataChegada;
 
   String daysRemainingMessage = 'Data de chegada não disponível';
@@ -444,10 +445,10 @@ void _showCreatePagamentoDialog(BuildContext context, int atendimentoId, int use
       isBlinking = true;
     } else if (daysRemaining <= 10) {
       daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
-      circleColor = Colors.yellow;
+      circleColor = Colors.orange;
     } else if (daysRemaining <= 15) {
       daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
-      circleColor = Colors.green;
+      circleColor = Colors.yellow;
     } else {
       daysRemainingMessage = 'Faltam mais de 15 dias para a devolução';
       circleColor = Colors.green;
@@ -456,14 +457,45 @@ void _showCreatePagamentoDialog(BuildContext context, int atendimentoId, int use
 
   return Card(
     margin: const EdgeInsets.all(8.0),
-    child: ListTile(
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    elevation: 4, // Sombra do card
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12), // Bordas arredondadas
+    ),
+    child: ExpansionTile(
+      title: Row(
         children: [
-          if (isBlinking)
-            _buildBlinkingAlert(daysRemainingMessage, circleColor)
-          else
-            Container(
+          Icon(
+            Icons.car_rental,
+            color: circleColor,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Atendimento ID: ${atendimento.id}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Destino: ${atendimento.destino ?? 'N/A'}',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        'Usuário: ${user.firstName ?? 'N/A'}',
+        style: const TextStyle(fontSize: 14),
+      ),
+      trailing: isBlinking
+          ? _buildBlinkingAlert(daysRemainingMessage, circleColor)
+          : Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               decoration: BoxDecoration(
                 color: circleColor,
@@ -474,33 +506,89 @@ void _showCreatePagamentoDialog(BuildContext context, int atendimentoId, int use
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
-          Text('Atendimento ID: ${atendimento.id}'),
-          Text('Destination: ${atendimento.destino ?? ''}'),
-          Text('User: ${user.firstName ?? ''}'),
-          Text('State: ${state ?? ''}'),
-          Text('Vehicle License Plate: ${veiculo.matricula ?? ''}'),
-          Text('Data de Saída: ${atendimento.dataSaida ?? ''}'),
-          Text('Data da Provável Devolução: ${atendimento.dataChegada ?? ''}'),
-          Text('Data da Devolucao: ${atendimento.dataDevolucao ?? ''}'),
-          Text('Km Inicial: ${atendimento.kmInicial ?? ''}'),
-          Text('Km Final: ${atendimento.kmFinal ?? ''}'),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.check_circle, color: Colors.green),
-            onPressed: () => _showCreatePagamentoDialog(
-              context,
-              atendimento.id!,
-              atendimento.userId!, // Passa o userId da reserva
-              2, // Aqui você pode passar o critério de pagamento selecionado
-            ),
-            tooltip: 'Confirm Creation of Payment',
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow(
+                Icons.date_range,
+                'Data de Saída:',
+                atendimento.dataSaida != null
+                    ? DateFormat('dd/MM/yyyy').format(atendimento.dataSaida!)
+                    : 'N/A',
+              ),
+              _buildDetailRow(
+                Icons.date_range,
+                'Data da Provável Devolução:',
+                atendimento.dataChegada != null
+                    ? DateFormat('dd/MM/yyyy').format(atendimento.dataChegada!)
+                    : 'N/A',
+              ),
+              _buildDetailRow(
+                Icons.date_range,
+                'Data da Devolução:',
+                atendimento.dataDevolucao != null
+                    ? DateFormat('dd/MM/yyyy').format(atendimento.dataDevolucao!)
+                    : 'N/A',
+              ),
+              _buildDetailRow(Icons.speed, 'Km Inicial:', atendimento.kmInicial?.toString() ?? 'N/A'),
+              _buildDetailRow(Icons.speed, 'Km Final:', atendimento.kmFinal?.toString() ?? 'N/A'),
+              _buildDetailRow(Icons.person, 'Usuário:', user.firstName ?? 'N/A'),
+              _buildDetailRow(Icons.directions_car, 'Veículo:', veiculo.matricula ?? 'N/A'),
+              _buildDetailRow(Icons.flag, 'Estado:', state ?? 'N/A'),
+            ],
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.check_circle, color: Colors.green),
+                onPressed: () => _showCreatePagamentoDialog(
+                  context,
+                  atendimento.id!,
+                  atendimento.userId!,
+                  2, // Critério de pagamento selecionado
+                ),
+                tooltip: 'Confirmar Criação de Pagamento',
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                onPressed: () {
+                  // Implemente a edição do atendimento
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  // Implemente a exclusão do atendimento
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Método auxiliar para construir uma linha de detalhe
+Widget _buildDetailRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey),
+        const SizedBox(width: 8),
+        Text(
+          '$label $value',
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
     ),
   );
 }
@@ -545,7 +633,7 @@ void _showCreatePagamentoDialog(BuildContext context, int atendimentoId, int use
 }
 
 class PagamentosTab extends StatelessWidget {
-final PagamentoService pagamentoService = PagamentoService('http://localhost:5000');
+final PagamentoService pagamentoService = PagamentoService(dotenv.env['BASE_URL']!);
 
   @override
   Widget build(BuildContext context) {
@@ -652,7 +740,7 @@ final PagamentoService pagamentoService = PagamentoService('http://localhost:500
 }
 
 class DetalhesPagamento extends StatelessWidget {
-  final DetalhePagamentoService pagamentoDetalhesService = DetalhePagamentoService('http://localhost:5000');
+  final DetalhePagamentoService pagamentoDetalhesService = DetalhePagamentoService(dotenv.env['BASE_URL']!);
 
   @override
   Widget build(BuildContext context) {

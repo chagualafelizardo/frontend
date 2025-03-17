@@ -4,6 +4,7 @@ import 'package:app/models/PaymentCriteria.dart';
 import 'package:app/services/DetalhePagamentoService.dart';
 import 'package:app/services/DetalhesPagamento.dart';
 import 'package:app/services/PaymentCriteriaService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Allocation.dart';
 import 'package:app/models/UserAtendimentoAllocation.dart';
@@ -74,7 +75,7 @@ class _ManagePaymentPageState extends State<ManageConfirmPaymentPage> with Singl
 }
 
 class PagamentosTab extends StatelessWidget {
-  final PagamentoService pagamentoService = PagamentoService('http://localhost:5000');
+  final PagamentoService pagamentoService = PagamentoService(dotenv.env['BASE_URL']!);
 
   @override
   Widget build(BuildContext context) {
@@ -181,7 +182,7 @@ void _autorizarPagamento() {
 }
 
 class DetalhesPagamento extends StatelessWidget {
-  final DetalhePagamentoService pagamentoDetalhesService = DetalhePagamentoService('http://localhost:5000');
+  final DetalhePagamentoService pagamentoDetalhesService = DetalhePagamentoService(dotenv.env['BASE_URL']!);
 
   @override
   Widget build(BuildContext context) {

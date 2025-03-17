@@ -1,6 +1,6 @@
 class UserRole {
-  final int? userId;
-  final int? roleId;
+  final int userId;
+  final int roleId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -16,10 +16,8 @@ class UserRole {
     return UserRole(
       userId: json['userId'],
       roleId: json['roleId'],
-      createdAt:
-          DateTime.parse(json['createdAt']), // Converte a string para DateTime
-      updatedAt:
-          DateTime.parse(json['updatedAt']), // Converte a string para DateTime
+      createdAt: DateTime.parse(json['createdAt']), // Converte a string para DateTime
+      updatedAt: DateTime.parse(json['updatedAt']), // Converte a string para DateTime
     );
   }
 

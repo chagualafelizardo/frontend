@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/services/VehicleSupplyService.dart';
 import 'package:app/models/VehicleSupply.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewVehicleSupplyForm.dart';
 import 'EditVehicleSupplyForm.dart';
 
@@ -12,7 +13,7 @@ class ManageVehicleSupplyPage extends StatefulWidget {
 }
 
 class _ManageVehicleSupplyPageState extends State<ManageVehicleSupplyPage> {
-  final VehicleSupplyService vehicleSupplyService = VehicleSupplyService(baseUrl:'http://localhost:5000');
+  final VehicleSupplyService vehicleSupplyService = VehicleSupplyService(baseUrl:dotenv.env['BASE_URL']!);
   List<VehicleSupply> _supplies = [];
   int _currentPage = 1;
   final int _itemsPerPage = 10;

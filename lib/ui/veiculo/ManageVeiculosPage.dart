@@ -8,6 +8,8 @@ import 'package:app/models/VeiculoAdd.dart';
 import 'package:app/ui/veiculo/ViewVeiculoPage.dart';
 import 'dart:convert';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ManageVeiculosPage extends StatefulWidget {
   const ManageVeiculosPage({super.key});
 
@@ -16,9 +18,9 @@ class ManageVeiculosPage extends StatefulWidget {
 }
 
 class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
-  final VeiculoService veiculoService = VeiculoService('http://localhost:5000');
+  final VeiculoService veiculoService = VeiculoService(dotenv.env['BASE_URL']!);
   final VeiculoServiceAdd veiculoServiceAdd =
-      VeiculoServiceAdd('http://localhost:5000');
+      VeiculoServiceAdd(dotenv.env['BASE_URL']!);
 
   List<Veiculo> _veiculos = [];
   List<Veiculo> _filteredVeiculos = []; // Lista filtrada de veículos
@@ -107,7 +109,7 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
         return AlertDialog(
           content: edit_form.EditVeiculoForm(
             veiculoServiceAdd: VeiculoServiceAdd(
-                'http://localhost:5000'), // Substitua pelo seu serviço real
+                dotenv.env['BASE_URL']!), // Substitua pelo seu serviço real
             veiculo: veiculoAdd,
             onVeiculoUpdated: () {
               // Atualize a lista de veículos após a edição

@@ -14,6 +14,7 @@ import 'package:app/services/AtendimentoService.dart';
 import 'package:app/services/ItemService.dart';
 import 'package:app/models/Item.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart'; // Para manipular bytes
@@ -44,14 +45,14 @@ class _AtendimentoFormState extends State<AtendimentoForm>
   double? _kmInicial;
   double? _kmFinal;
   final AtendimentoService _atendimentoService =
-      AtendimentoService('http://localhost:5000');
-  final ItemService _itemService = ItemService('http://localhost:5000');
+      AtendimentoService(dotenv.env['BASE_URL']!);
+  final ItemService _itemService = ItemService(dotenv.env['BASE_URL']!);
 
   List<Item> _items = [];
   Map<String, bool> _itemChecklist = {};
   bool _isLoading = true;
   late TabController _tabController;
-  final ItensEntregaService _itensEntregaService = ItensEntregaService("http://localhost:5000");
+  final ItensEntregaService _itensEntregaService = ItensEntregaService(dotenv.env['BASE_URL']!);
   List<ItensEntrega> _itensEntrega = [];
   ItensEntrega? _selectedItem;
 
@@ -83,27 +84,6 @@ class _AtendimentoFormState extends State<AtendimentoForm>
     }
   }
 
-//   Future<void> _fetchItensEntrega() async {
-//   try {
-//     final response = await http.get(Uri.parse('http://localhost:5000/itensentrega'));
-//     print('Response Status: ${response.statusCode}');
-//     print('Response Body: ${response.body}');
-
-//     if (response.statusCode == 200) {
-//       final List<dynamic> data = jsonDecode(response.body);
-//       print('JSON Decodificado: $data');
-
-//       setState(() {
-//         _itensEntrega = data.map((json) => ItensEntrega.fromJson(json)).toList();
-//       });
-//     } else {
-//       print('Erro ao carregar itens: ${response.statusCode}');
-//     }
-//   } catch (e) {
-//     print('Erro ao buscar itens entrega: $e');
-//   }
-// }
-
 Future<void> _fetchItensEntrega() async {
     try {
       List<ItensEntrega> itens = await _itensEntregaService.getAllItensEntrega();
@@ -121,7 +101,7 @@ Future<void> _fetchItensEntrega() async {
   Future<void> addAtendimentoItems(
       List<String> checkedItems, int atendimentoID) async {
     AtendimentoItemService atendimentoItemService = AtendimentoItemService(
-        'http://localhost:5000'); // Substitua pela URL correta
+        dotenv.env['BASE_URL']!); // Substitua pela URL correta
 
     for (String itemDescription in checkedItems) {
       final atendimentoItem = AtendimentoItem(
@@ -143,7 +123,7 @@ Future<void> _fetchItensEntrega() async {
       List<Map<String, dynamic>> documents, int atendimentoID) async {
     AtendimentoDocumentService atendimentoDocumentService =
         AtendimentoDocumentService(
-            'http://localhost:5000'); // Substitua pela URL correta
+            dotenv.env['BASE_URL']!); // Substitua pela URL correta
 
     for (var doc in documents) {
       final atendimentoDocument = AtendimentoDocument(

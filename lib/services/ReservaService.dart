@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:app/models/Reserva.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class ReservaService {
-  final String baseUrl = 'http://localhost:5000';
+  final String? baseUrl = dotenv.env['BASE_URL'];
 
   ReservaService(baseUrl);
 

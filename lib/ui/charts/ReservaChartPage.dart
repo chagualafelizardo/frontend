@@ -4,6 +4,7 @@ import 'package:app/ui/charts/ReservaPieChart.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Reserva.dart';
 import 'package:app/services/ReservaService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ReservaChartPage extends StatefulWidget {
   @override
@@ -11,7 +12,7 @@ class ReservaChartPage extends StatefulWidget {
 }
 
 class _ReservaChartPageState extends State<ReservaChartPage> {
-  final ReservaService reservaService = ReservaService('http://localhost:5000');
+  final ReservaService reservaService = ReservaService(dotenv.env['BASE_URL']!);
   List<Reserva> reservas = [];
   Map<DateTime, int> reservasPorData = {};
   bool isLoading = true;

@@ -38,12 +38,9 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
   bool _isGridView = false;
   Uint8List? _imageBytes;
 
-  String _state = 'active';
-  String _gender = 'male';
-
   final VeiculoService _veiculoService = VeiculoService(dotenv.env['BASE_URL']!);
   final UserServiceReserva _userService = UserServiceReserva(dotenv.env['BASE_URL']!);
-  
+
   @override
   void initState() {
     super.initState();
@@ -91,17 +88,6 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
       print('Error fetching users: $e');
     }
   }
-
-//   Future<void> _fetchUsers() async {
-//   try {
-//     final response = await _userService.getAllClients();
-//     setState(() {
-//       _users = response.cast<user_models.User>(); // Atualiza a lista de usuários
-//     });
-//   } catch (e) {
-//     print('Error fetching users: $e');
-//   }
-// }
 
   Future<void> _createReserva(veiculo_models.Veiculo veiculo) async {
     if (_selectedDates.containsKey(veiculo) &&
@@ -170,46 +156,35 @@ void _showAddClientDialog() {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
-  String username = _usernameController.text;
-    String firstName = _firstNameController.text;
-    String lastName = _lastNameController.text;
-    String email = _emailController.text;
-    String password = _passwordController.text;
-    String address = _addressController.text.isEmpty ? '' : _addressController.text;
-    String phone1 = _phone1Controller.text.isEmpty ? '' : _phone1Controller.text;
-    String phone2 = _phone2Controller.text.isEmpty ? '' : _phone2Controller.text;
-    String birthdate = _birthdateController.text;
-
   // Variáveis para gênero e estado
   String _gender = 'M'; // 'M' para masculino, 'F' para feminino
   String _state = 'active'; // 'active' ou 'inactive'
 
+  // Variável para armazenar a imagem selecionada
 
-// Função para comprimir a imagem
-Uint8List _compressImage(Uint8List imageBytes) {
-  final img.Image? image = img.decodeImage(imageBytes);
-  if (image != null) {
-    final img.Image resizedImage = img.copyResize(image, width: 600, height: 400);
-    return Uint8List.fromList(img.encodeJpg(resizedImage, quality: 80));
+  // Função para comprimir a imagem
+  Uint8List _compressImage(Uint8List imageBytes) {
+    final img.Image? image = img.decodeImage(imageBytes);
+    if (image != null) {
+      final img.Image resizedImage =
+          img.copyResize(image, width: 600, height: 400);
+      return Uint8List.fromList(img.encodeJpg(resizedImage, quality: 80));
+    }
+    return imageBytes;
   }
-  return imageBytes;
-}
 
-// Função para comprimir a imagem
-Future<void> _pickImage() async {
-  final ImagePicker picker = ImagePicker();
-  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-  if (image != null) {
-    final Uint8List imageBytes = await image.readAsBytes();
-    final Uint8List compressedImageBytes = _compressImage(imageBytes);
-
-    setState(() {
-      _imageBytes = compressedImageBytes; // Atualiza o estado da imagem
-    });
+  // Função para selecionar uma imagem
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final imageBytes = await image.readAsBytes();
+      final compressedImageBytes = _compressImage(imageBytes); // Agora a função está declarada antes
+      setState(() {
+        _imageBytes = compressedImageBytes;
+      });
+    }
   }
-}
-
 
   // Função para selecionar a data de nascimento
   Future<void> _selectBirthdate(BuildContext context) async {
@@ -366,95 +341,52 @@ Future<void> _pickImage() async {
         ),
         TextButton(
           onPressed: () async {
-              // Captura os valores dos campos
-              String username = _usernameController.text;
-              String firstName = _firstNameController.text;
-              String lastName = _lastNameController.text;
-              String email = _emailController.text;
-              String password = _passwordController.text;
-              String address = _addressController.text;
-              String phone1 = _phone1Controller.text;
-              String phone2 = _phone2Controller.text;
-              String birthdate = _birthdateController.text;
-
-              // Validação dos campos
-              if (username.isEmpty ||
-                  firstName.isEmpty ||
-                  lastName.isEmpty ||
-                  email.isEmpty ||
-                  password.isEmpty ||
-                  _confirmPasswordController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill in all required fields.')),
-                );
-                return;
-              }
-
-              if (_passwordController.text != _confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwords do not match.')),
-                );
-                return;
-              }
-
-              // Converte a imagem para base64, se existir
-              String? imageBase64;
-              if (_imageBytes != null) {
-                imageBase64 = base64Encode(_imageBytes!);
-                print('🖼️ Imagem convertida para base64.');
-              }
-
-              // Criando o objeto User
-              print('🔄 Criando objeto User...');
-              user_models.User newUser = user_models.User(
-                id: _users.length + 1, // Gera um ID temporário (substitua pela lógica do backend)
-                username: username,
-                firstName: firstName,
-                lastName: lastName,
-                email: email,
-                address: address,
-                neighborhood: _neighborhoodController.text.isEmpty ? '' : _neighborhoodController.text,
-                phone1: phone1,
-                phone2: phone2,
-                password: password,
-                imgBase64: imageBase64 ?? '', // Inclui a imagem em base64
-                state: _state ?? 'active', // Valor padrão para estado
-                gender: _gender ?? 'M', // Valor padrão para gênero
-                birthdate: birthdate,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
+            // Validação dos campos
+            if (_usernameController.text.isEmpty ||
+                _firstNameController.text.isEmpty ||
+                _lastNameController.text.isEmpty ||
+                _emailController.text.isEmpty ||
+                _passwordController.text.isEmpty ||
+                _confirmPasswordController.text.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please fill in all required fields.')),
               );
-              print('✅ Usuário criado: ${newUser.toJson()}');
+              return;
+            }
 
-              try {
-                // Operação de criação de usuário
-                print('🚀 Criando novo usuário...');
-                user_models.User createdUser = await _userService.createUser(newUser);
-                print('✅ Usuário criado com sucesso! ID: ${createdUser.id}');
+            if (_passwordController.text != _confirmPasswordController.text) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Passwords do not match.')),
+              );
+              return;
+            }
 
-                // Atribuir roles ao usuário
-                UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
-                await userRoleService.assignRoleToUser(createdUser.id, 9); // Atribui a role com ID 9
+            // Cria o novo cliente
+            final newClient = user_models.User(
+              id: _users.length + 1, // Gera um ID temporário (substitua pela lógica do backend)
+              username: _usernameController.text,
+              firstName: _firstNameController.text,
+              lastName: _lastNameController.text,
+              gender: _gender,
+              birthdate: _birthdateController.text,
+              email: _emailController.text,
+              address: _addressController.text,
+              neighborhood: _neighborhoodController.text,
+              phone1: _phone1Controller.text,
+              phone2: _phone2Controller.text,
+              password: _passwordController.text,
+              state: _state,
+              // imageBytes: _imageBytes,
+            );
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('🎉 User "${newUser.username}" added successfully with roles!')),
-                );
+            // Adiciona o novo cliente à lista de usuários
+            setState(() {
+              _users.add(newClient);
+            });
 
-                // Adiciona o novo cliente à lista de usuários
-                setState(() {
-                  _users.add(createdUser);
-                });
-
-                // Fecha o diálogo
-                Navigator.pop(context);
-              } catch (e, stackTrace) {
-                print('❌ Erro ao adicionar usuário: $e');
-                print('📌 StackTrace: $stackTrace');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('⚠️ Failed to add user. Please try again.')),
-                );
-              }
-            },
+            // Fecha o diálogo
+            Navigator.pop(context);
+          },
           child: const Text('Save'),
         ),
       ],
@@ -462,7 +394,6 @@ Future<void> _pickImage() async {
   },
 );
 }
-
 
   // Método para selecionar a data
   Future<void> _selectDate(BuildContext context, veiculo_models.Veiculo veiculo) async {
@@ -611,11 +542,11 @@ Future<void> _pickImage() async {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // Alinha os detalhes à esquerda
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
                     Text(
-                      'Engine number: ${veiculo.numMotor}',
+                      'Engine numebr: ${veiculo.numMotor}',
                       style: const TextStyle(fontSize: 14),
                     ),
                     Text(
@@ -627,18 +558,18 @@ Future<void> _pickImage() async {
                       style: const TextStyle(fontSize: 14),
                     ),
                     Text(
-                      'Doors: ${veiculo.numPortas}',
+                      'Dors: ${veiculo.numPortas}',
                       style: const TextStyle(fontSize: 14),
                     ),
                     Text(
                       'Fuel Type: ${veiculo.tipoCombustivel}',
                       style: const TextStyle(fontSize: 14),
                     ),
-                    Text(
+                     Text(
                       'Rental Includes Driver?: ${veiculo.rentalIncludesDriver}',
                       style: const TextStyle(fontSize: 14),
                     ),
-                    Text(
+                     Text(
                       'State: ${veiculo.state}',
                       style: const TextStyle(fontSize: 14),
                     ),

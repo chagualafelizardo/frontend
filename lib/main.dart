@@ -1,3 +1,4 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/constants.dart';
 import 'package:app/controllers/menu_app_controller.dart';
 import 'package:app/ui/charts/AtendimentoChartPage.dart';
@@ -24,7 +25,8 @@ import 'package:app/ui/veiculo/ManageVeiculosPage.dart';
 import 'package:app/ui/item/ManageItemsPage.dart';
 import 'package:app/screens/main/main_screen.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(); // Carregar o .env antes de rodar o app
   runApp(MyApp());
 }
 

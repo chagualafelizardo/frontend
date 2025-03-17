@@ -6,6 +6,7 @@ import 'package:app/models/Manutencao.dart';
 import 'package:app/models/Item.dart';
 import 'package:app/services/ManutencaoService.dart';
 import 'package:app/services/VehicleSupplyService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ManageManutencoesPage extends StatefulWidget {
   const ManageManutencoesPage({super.key});
@@ -15,9 +16,9 @@ class ManageManutencoesPage extends StatefulWidget {
 }
 
 class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
-  final ManutencaoService manutencaoService = ManutencaoService('http://localhost:5000');
-  final VehicleSupplyService vehicleSupplyService = VehicleSupplyService(baseUrl: 'http://localhost:5000');
-  final DetalhesManutencaoService detalhesManutencaoService = DetalhesManutencaoService('http://localhost:5000');
+  final ManutencaoService manutencaoService = ManutencaoService(dotenv.env['BASE_URL']!);
+  final VehicleSupplyService vehicleSupplyService = VehicleSupplyService(baseUrl: dotenv.env['BASE_URL']!);
+  final DetalhesManutencaoService detalhesManutencaoService = DetalhesManutencaoService(dotenv.env['BASE_URL']!);
 
   List<Manutencao> _manutencoes = [];
   List<Manutencao> _manutencoesConcluidas = [];

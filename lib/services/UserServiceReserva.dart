@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:app/models/UserRole.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/UserReserva.dart';
 
@@ -18,18 +19,56 @@ class UserServiceReserva {
     }
   }
 
-  Future<List<User>> getClient() async {
-    final response = await http.get(Uri.parse('$apiUrl/user'));
+  // Future<List<User>> getClient() async {
+  //   final response = await http.get(Uri.parse('$apiUrl/user'));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      print('Fetched users data: $data'); // Log da resposta
-      return data.map((json) => User.fromJson(json)).toList();
-    } else {
-      print('Failed to fetch users: ${response.body}');
-      throw Exception('Failed to load users');
+  //   if (response.statusCode == 200) {
+  //     final List<dynamic> data = json.decode(response.body);
+  //     print('Fetched users data: $data'); // Log da resposta
+  //     return data.map((json) => User.fromJson(json)).toList();
+  //   } else {
+  //     print('Failed to fetch users: ${response.body}');
+  //     throw Exception('Failed to load users');
+  //   }
+  // }
+  
+  // Método para buscar todos os clientes
+  Future<List<User>> getAllClients() async {
+    try {
+      final response = await http.get(Uri.parse('$apiUrl/userrole/clients'));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        print('Fetched clients data: $data'); // Log da resposta
+        return data.map((user) => User.fromJson(user)).toList();
+      } else {
+        print('Failed to fetch clients: ${response.body}');
+        return [];
+      }
+    } catch (error) {
+      print('Error fetching clients: $error');
+      return [];
     }
   }
+
+    Future<List<User>> getAllDrivers() async {
+    try {
+      final response = await http.get(Uri.parse('$apiUrl/userrole/drivers'));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        print('Fetched clients data: $data'); // Log da resposta
+        return data.map((user) => User.fromJson(user)).toList();
+      } else {
+        print('Failed to fetch clients: ${response.body}');
+        return [];
+      }
+    } catch (error) {
+      print('Error fetching clients: $error');
+      return [];
+    }
+  }
+
 
   Future<User> createUser(User user) async {
     final response = await http.post(

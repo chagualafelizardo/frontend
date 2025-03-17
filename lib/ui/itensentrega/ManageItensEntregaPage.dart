@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/services/ItensEntregaService.dart';
 import 'package:app/models/ItensEntrega.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewItensEntregaForm.dart';
 import 'EditItensEntregaForm.dart';
 import 'ViewItensEntregaPage.dart';
@@ -15,7 +16,7 @@ class ManageItensEntregaPage extends StatefulWidget {
 
 class _ManageItensEntregaPageState extends State<ManageItensEntregaPage> {
   final ItensEntregaService itensEntregaService =
-      ItensEntregaService('http://localhost:5000'); // Certifique-se de que o URL base está configurado corretamente no serviço
+      ItensEntregaService(dotenv.env['BASE_URL']!); // Certifique-se de que o URL base está configurado corretamente no serviço
   List<ItensEntrega> _itensEntrega = [];
   int _currentPage = 1;
   final int _itemsPerPage = 10;

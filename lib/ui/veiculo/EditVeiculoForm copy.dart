@@ -369,104 +369,93 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
                     ),
                   ),
                   Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Stack(
-                        children: [
-                          // GridView para exibir as imagens
-                          GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3, // 3 colunas
-                              mainAxisSpacing: 8, // Espaçamento vertical
-                              crossAxisSpacing: 8, // Espaçamento horizontal
-                            ),
-                            itemCount: _existingImageUrls.length + _newAdditionalImages.length,
-                            itemBuilder: (context, index) {
-                              if (index < _existingImageUrls.length) {
-                                // Imagens existentes
-                                return GestureDetector(
-                                  onTap: () {
-                                    // Navegar para a página de visualização de imagem
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ImagePreviewPage(
-                                          images: _existingImageUrls
-                                              .map((url) => base64Decode(url))
-                                              .toList(),
-                                          initialIndex: index,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Stack(
-                                    children: [
-                                      // Exibir a imagem
-                                      Image.memory(
-                                        base64Decode(_existingImageUrls[index]),
-                                        fit: BoxFit.cover,
-                                      ),
-                                      // Botão para remover a imagem
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, color: Colors.red),
-                                          onPressed: () => _removeAdditionalImage(index, true),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              } else {
-                                // Novas imagens adicionais
-                                final newIndex = index - _existingImageUrls.length;
-                                return GestureDetector(
-                                  onTap: () {
-                                    // Navegar para a página de visualização de imagem
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ImagePreviewPage(
-                                          images: _newAdditionalImages,
-                                          initialIndex: newIndex,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Stack(
-                                    children: [
-                                      // Exibir a imagem
-                                      Image.memory(
-                                        _newAdditionalImages[newIndex],
-                                        fit: BoxFit.cover,
-                                      ),
-                                      // Botão para remover a imagem
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, color: Colors.red),
-                                          onPressed: () => _removeAdditionalImage(newIndex, false),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-                            },
+                    padding: const EdgeInsets.all(16.0),
+                    child: Stack(
+                      children: [
+                        GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
                           ),
-                          // Botão para adicionar novas imagens
-                          Positioned(
-                            bottom: 10,
-                            right: 10,
-                            child: FloatingActionButton(
-                              onPressed: _pickAdditionalImage,
-                              child: const Icon(Icons.add),
-                            ),
+                          itemCount: _existingImageUrls.length + _newAdditionalImages.length,
+                          itemBuilder: (context, index) {
+                            if (index < _existingImageUrls.length) {
+                              // Imagens existentes
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ImagePreviewPage(
+                                        images: _existingImageUrls
+                                            .map((url) => base64Decode(url))
+                                            .toList(),
+                                        initialIndex: index,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Stack(
+                                  children: [
+                                    Image.memory(base64Decode(_existingImageUrls[index])),
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () =>
+                                            _removeAdditionalImage(index, true),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              // Novas imagens adicionais
+                              final newIndex = index - _existingImageUrls.length;
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ImagePreviewPage(
+                                        images: _newAdditionalImages,
+                                        initialIndex: newIndex,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Stack(
+                                  children: [
+                                    Image.memory(_newAdditionalImages[newIndex]),
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close),
+                                        onPressed: () =>
+                                            _removeAdditionalImage(newIndex, false),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          right: 10,
+                          child: FloatingActionButton(
+                            onPressed: _pickAdditionalImage,
+                            child: const Icon(Icons.add),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),

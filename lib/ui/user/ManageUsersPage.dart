@@ -2,6 +2,7 @@ import 'package:app/ui/user/EditUserForm.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/UserRenderImgBase64.dart';
 import 'package:app/services/UserService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'AddNewUserForm.dart';
 import 'dart:typed_data';
@@ -16,7 +17,7 @@ class ManageUsersPage extends StatefulWidget {
 }
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
-  final UserService userService = UserService('http://localhost:5000');
+  final UserService userService = UserService(dotenv.env['BASE_URL']!);
   List<UserBase64> _users = [];
   List<UserBase64> _filteredUsers = [];
   String _searchQuery = ''; // Variável para armazenar a consulta de pesquisa

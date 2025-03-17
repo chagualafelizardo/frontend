@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/services/OficinaService.dart';
 import 'package:app/models/Oficina.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewOficinaForm.dart';
 import 'EditOficinaForm.dart';
 import 'ViewOficinaPage.dart';
@@ -13,7 +14,7 @@ class ManageOficinasPage extends StatefulWidget {
 }
 
 class _ManageOficinasPageState extends State<ManageOficinasPage> {
-  final OficinaService oficinaService = OficinaService('http://localhost:5000');
+  final OficinaService oficinaService = OficinaService(dotenv.env['BASE_URL']!);
   List<Oficina> _oficinas = [];
   int _currentPage = 1;
   final int _itemsPerPage = 10;

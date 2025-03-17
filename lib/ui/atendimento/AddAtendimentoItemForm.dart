@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class AddAtendimentoItemForm extends StatefulWidget {
@@ -23,7 +24,7 @@ class _AddAtendimentoItemFormState extends State<AddAtendimentoItemForm> {
   // Função para buscar os itens da tabela de itens
   Future<void> _fetchAvailableItems() async {
     final response = await http.get(Uri.parse(
-        'http://localhost:5000/Item')); // Substitua pelo endpoint correto
+        '${dotenv.env['BASE_URL']}/Item')); // Substitua pelo endpoint correto
 
     if (response.statusCode == 200) {
       setState(() {
@@ -51,7 +52,7 @@ class _AddAtendimentoItemFormState extends State<AddAtendimentoItemForm> {
         };
 
         final response = await http.post(
-          Uri.parse('http://localhost:5000/atendimentoItem'),
+          Uri.parse('${dotenv.env['BASE_URL']}/atendimentoItem'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(atendimentoItem),
         );

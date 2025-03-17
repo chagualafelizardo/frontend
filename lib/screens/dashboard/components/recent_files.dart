@@ -1,6 +1,7 @@
 import 'package:app/models/atendimento.dart'; // Importe o modelo Atendimento
 import 'package:app/services/AtendimentoService.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../constants.dart';
 import 'package:app/ui/charts/ReservaBarChart.dart'; // Importe o gráfico de barras
 import 'package:app/ui/charts/ReservaLineChart.dart'; // Importe o gráfico de linhas
@@ -16,7 +17,7 @@ class RecentFiles extends StatefulWidget {
 }
 
 class _RecentFilesState extends State<RecentFiles> {
-  final ReservaService _reservaService = ReservaService('http://localhost:5000');
+  final ReservaService _reservaService = ReservaService(dotenv.env['BASE_URL']);
   Map<DateTime, int> reservasPorData = {};
   bool _isLoading = true;
   DateTime? _startDate; // Data inicial selecionada

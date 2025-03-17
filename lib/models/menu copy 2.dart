@@ -22,7 +22,7 @@
 
 // // Função para buscar reservas do backend
 // Future<List<Reserva>> fetchReservas() async {
-//   final response = await http.get(Uri.parse('http://localhost:5000/reserva'));
+//   final response = await http.get(Uri.parse('dotenv.env['BASE_URL']/reserva'));
 //   if (response.statusCode == 200) {
 //     final List<dynamic> data = jsonDecode(response.body);
 //     return data.map((json) => Reserva.fromJson(json)).toList();

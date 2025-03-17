@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:app/services/UserServiceBase64.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Allocation.dart';
 import 'package:app/models/UserAtendimentoAllocation.dart';
@@ -28,15 +29,15 @@ class ManageAlocarMotoristaPage extends StatefulWidget {
 class _ManageAlocarMotoristaPageState
     extends State<ManageAlocarMotoristaPage> with SingleTickerProviderStateMixin {
   final AtendimentoService _atendimentoService =
-      AtendimentoService('http://localhost:5000');
+      AtendimentoService(dotenv.env['BASE_URL']!);
 
   final ReservaService _reservaService =
-      ReservaService('http://localhost:5000');
+      ReservaService(dotenv.env['BASE_URL']);
  
   final VeiculoServiceAdd _veiculoService =
-      VeiculoServiceAdd('http://localhost:5000');
+      VeiculoServiceAdd(dotenv.env['BASE_URL']!);
 
-  final UserService _userService = UserService('http://localhost:5000');
+  final UserService _userService = UserService(dotenv.env['BASE_URL']!);
 
   var user,veiculo,state;
 
@@ -270,7 +271,7 @@ void _filterAtendimentos() {
 void _showDriverDetailsDialog(int atendimentoId) async {
   try {
     // Busca alocação do motorista
-    UserAtendimentoAllocationService allocationService = UserAtendimentoAllocationService(baseUrl: 'http://localhost:5000');
+    UserAtendimentoAllocationService allocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
     UserBase64 user = (await allocationService.getDriverForAtendimento(atendimentoId)) as UserBase64;
 
     // Valida ID do usuário
@@ -282,7 +283,7 @@ void _showDriverDetailsDialog(int atendimentoId) async {
     print('userId: ${user.id}');
 
     // Busca detalhes do usuário
-    UserServiceBase64 userService = UserServiceBase64('http://localhost:5000');
+    UserServiceBase64 userService = UserServiceBase64(dotenv.env['BASE_URL']!);
     UserBase64 motorista = await userService.getUserById(user.id);
 
     // Exibe diálogo
@@ -325,8 +326,8 @@ void _showUserDetails({
   required DateTime startDate,
   required DateTime endDate,
 }) {
-  final AllocationService allocationService = AllocationService('http://localhost:5000');
-  final UserAtendimentoAllocationService userAtendimentoAllocationService = UserAtendimentoAllocationService(baseUrl: 'http://localhost:5000');
+  final AllocationService allocationService = AllocationService(dotenv.env['BASE_URL']!);
+  final UserAtendimentoAllocationService userAtendimentoAllocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
 
   print("Chamando _showUserDetails..."); // Log para confirmar a chamada
   List<int> selectedUserIds = []; // Lista para armazenar os IDs dos motoristas selecionados
@@ -679,7 +680,7 @@ void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
 
               // Envia os dados para o backend
               try {
-                EnviaManutencaoService service = EnviaManutencaoService('http://localhost:5000');
+                EnviaManutencaoService service = EnviaManutencaoService(dotenv.env['BASE_URL']!);
                 await service.createEnviaManutencao(manutencao);
 
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -799,7 +800,7 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
 
 
 
-  Widget _buildAtendimentoCard(Atendimento atendimento) {
+Widget _buildAtendimentoCard(Atendimento atendimento) {
   final DateTime? dataChegada = atendimento.dataChegada;
 
   String daysRemainingMessage = 'Data de chegada não disponível';
@@ -816,26 +817,87 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
       isBlinking = true;
     } else if (daysRemaining <= 10) {
       daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
-      circleColor = Colors.yellow;
+      circleColor = Colors.orange;
     } else if (daysRemaining <= 15) {
       daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
-      circleColor = Colors.green;
+      circleColor = Colors.yellow;
     } else {
       daysRemainingMessage = 'Faltam mais de 15 dias para a devolução';
       circleColor = Colors.green;
     }
   }
 
-return Card(
+  return Card(
   margin: const EdgeInsets.all(8.0),
-  child: ListTile(
-    title: Column(
+  elevation: 4, // Sombra do card
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(12), // Bordas arredondadas
+  ),
+  child: ExpansionTile(
+    title: Row(
+      children: [
+        Icon(
+          Icons.car_rental,
+          color: circleColor,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Atendimento ID: ${atendimento.id}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                'Destino: ${atendimento.destino ?? 'N/A'}',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    subtitle: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (isBlinking)
-          _buildBlinkingAlert(daysRemainingMessage, circleColor)
-        else
-          Container(
+        Text(
+          'Usuário: ${user.firstName ?? 'N/A'}',
+          style: const TextStyle(fontSize: 14),
+        ),
+        // Adicionando os botões aqui
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end, // Alinha os botões à direita
+            children: [
+              // Botão para ver o motorista alocado
+              IconButton(
+                icon: const Icon(Icons.person_2, color: Color.fromARGB(255, 45, 116, 163)),
+                onPressed: () {
+                  // _showDriverDetails(atendimento.motoristaAlocado);
+                },
+                tooltip: 'Ver Motorista Alocado',
+              ),
+              // Botão para ver os detalhes dos itens
+              IconButton(
+                icon: const Icon(Icons.list, color: Colors.teal),
+                onPressed: () {
+                  // _showItemDetails(atendimento.itens);
+                },
+                tooltip: 'Ver Detalhes dos Itens',
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    trailing: isBlinking
+        ? _buildBlinkingAlert(daysRemainingMessage, circleColor)
+        : Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             decoration: BoxDecoration(
               color: circleColor,
@@ -846,95 +908,102 @@ return Card(
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
-        Text('Atendimento ID: ${atendimento.id}'),
-        Text('Destination: ${atendimento.destino ?? ''}'),
-        Text('User: ${user.firstName ?? ''}'),
-        Text('State: ${state ?? ''}'),
-        Text('Vehicle License Plate: ${veiculo.matricula ?? ''}'),
-        Text('Data de Saída: ${atendimento.dataSaida ?? ''}'),
-        Text('Data da Provável Devolução: ${atendimento.dataChegada ?? ''}'),
-        Text('Data da Devolucao: ${atendimento.dataDevolucao ?? ''}'),
-        Text('Km Inicial: ${atendimento.kmInicial ?? ''}'),
-        Text('Km Final: ${atendimento.kmFinal ?? ''}'),
-
-        Row(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow(
+              Icons.date_range,
+              'Data de Saída:',
+              atendimento.dataSaida != null
+                  ? DateFormat('dd/MM/yyyy').format(atendimento.dataSaida!)
+                  : 'N/A',
+            ),
+            _buildDetailRow(
+              Icons.date_range,
+              'Data da Provável Devolução:',
+              atendimento.dataChegada != null
+                  ? DateFormat('dd/MM/yyyy').format(atendimento.dataChegada!)
+                  : 'N/A',
+            ),
+            _buildDetailRow(
+              Icons.date_range,
+              'Data da Devolução:',
+              atendimento.dataDevolucao != null
+                  ? DateFormat('dd/MM/yyyy').format(atendimento.dataDevolucao!)
+                  : 'N/A',
+            ),
+            _buildDetailRow(Icons.speed, 'Km Inicial:', atendimento.kmInicial?.toString() ?? 'N/A'),
+            _buildDetailRow(Icons.speed, 'Km Final:', atendimento.kmFinal?.toString() ?? 'N/A'),
+            _buildDetailRow(Icons.person, 'Usuário:', user.firstName ?? 'N/A'),
+            _buildDetailRow(Icons.directions_car, 'Veículo:', veiculo.matricula ?? 'N/A'),
+            _buildDetailRow(Icons.flag, 'Estado:', state ?? 'N/A'),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
             IconButton(
-              icon: const Icon(Icons.person, color: Colors.blue),
-              tooltip: 'Ver Detalhes do Motorista',
-              onPressed: () {
-                try {
-                  if (user != null) {
-                    _showDriverDetailsDialog(atendimento.id!);
-                  } else {
-                    print('Motorista não alocado.');
-                  }
-                } catch (error) {
-                  print('Erro ao buscar detalhes do motorista: $error');
-                }
-              },
+              icon: const Icon(Icons.check_circle, color: Colors.green),
+              onPressed: () => _showConfirmReturnDialog(atendimento),
+              tooltip: 'Confirmar Devolução',
             ),
             IconButton(
-              icon: const Icon(Icons.list, color: Colors.blue),
-              tooltip: 'Ver itens presentes no acto da entrega da viatura',
-              onPressed: () {
+              icon: const Icon(Icons.person_add, color: Colors.blue),
+              onPressed: () async {
                 try {
-                  if (user != null) {
-                    // _showDriverDetailsDialog(atendimento.id!);
-                  } else {
-                    print('Motorista não alocado.');
-                  }
+                  _showUserDetails(
+                    atendimentoId: atendimento.id!,
+                    destination: atendimento.destino!,
+                    plate: veiculo.matricula,
+                    startDate: atendimento.dataSaida!,
+                    endDate: atendimento.dataChegada!,
+                  );
+                  print('Detalhes do usuário exibidos com sucesso.');
                 } catch (error) {
-                  print('Erro ao buscar detalhes do motorista: $error');
+                  print('Erro ao buscar detalhes do usuário: $error');
                 }
               },
+              tooltip: 'Alocar Motorista',
+            ),
+            IconButton(
+              icon: const Icon(Icons.car_crash, color: Colors.orange),
+              onPressed: () => _showSendToMaintenanceDialog(atendimento.id!, veiculo.matricula),
+              tooltip: 'Enviar para Manutenção',
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _showDeleteConfirmationDialog(atendimento.id!),
+              tooltip: 'Excluir Atendimento',
             ),
           ],
         ),
-      ],
-    ),
-    trailing: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Tooltip(
-          message: 'Allocate drive to this travel',
-          child: IconButton(
-            icon: const Icon(Icons.person_add, color: Colors.blue),
-            onPressed: () async {
-              try {
-                _showUserDetails(
-                  atendimentoId: atendimento.id!, 
-                  destination: atendimento.destino!, 
-                  plate: veiculo.matricula, 
-                  startDate: atendimento.dataSaida!, 
-                  endDate: atendimento.dataSaida!,
-                );
-                print('There are details to display');
-              } catch (error) {
-                print('Erro ao buscar detalhes do usuário: $error');
-              }
-            },
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.check_circle, color: Colors.green),
-          onPressed: () => _showConfirmReturnDialog(atendimento),
-          tooltip: 'Confirm Return',
-        ),
-        IconButton(
-          icon: const Icon(Icons.car_crash, color: Color.fromARGB(255, 82, 83, 82)),
-          onPressed: () => _showSendToMaintenanceDialog(atendimento.id!,veiculo.matricula),
-          tooltip: 'Send this vehicle for maintenance',
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: () => _showDeleteConfirmationDialog(atendimento.id!),
-          tooltip: 'Delete record',
-        ),
-      ],
-    ),
+      ),
+    ],
   ),
 );
+}
+
+// Método auxiliar para construir uma linha de detalhe
+Widget _buildDetailRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey),
+        const SizedBox(width: 8),
+        Text(
+          '$label $value',
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    ),
+  );
 }
 
 

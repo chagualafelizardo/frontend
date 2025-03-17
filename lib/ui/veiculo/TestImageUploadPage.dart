@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:app/services/VeiculoImgService.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 
 class TestImageUploadPage extends StatefulWidget {
@@ -32,7 +33,7 @@ class _TestImageUploadPageState extends State<TestImageUploadPage> {
   }
 
   Future<void> _uploadAdditionalImages() async {
-  final VeiculoImgService veiculoImgService = VeiculoImgService('http://localhost:5000');
+  final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
   
   if (_additionalImages.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(

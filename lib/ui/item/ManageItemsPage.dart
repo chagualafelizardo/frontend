@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/services/ItemService.dart';
 import 'package:app/models/Item.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewItemForm.dart';
 import 'EditItemForm.dart';
 import 'ViewItemPage.dart'; // Certifique-se de importar o ViewItemPage
@@ -13,7 +14,7 @@ class ManageItemsPage extends StatefulWidget {
 }
 
 class _ManageItemsPageState extends State<ManageItemsPage> {
-  final ItemService itemService = ItemService('http://localhost:5000');
+  final ItemService itemService = ItemService(dotenv.env['BASE_URL']!);
   List<Item> _items = [];
   int _currentPage = 1;
   final int _itemsPerPage = 10;

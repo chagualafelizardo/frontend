@@ -8,6 +8,7 @@ import 'package:app/ui/charts/ReservaPieChart.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Reserva.dart';
 import 'package:app/services/AtendimentoService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AtendimentoChartPage extends StatefulWidget {
   @override
@@ -15,7 +16,7 @@ class AtendimentoChartPage extends StatefulWidget {
 }
 
 class _AtendimentoChartPageState extends State<AtendimentoChartPage> {
-  final AtendimentoService atendimentoService = AtendimentoService('http://localhost:5000');
+  final AtendimentoService atendimentoService = AtendimentoService(dotenv.env['BASE_URL']!);
   List<Atendimento> atendimentos = [];
   Map<DateTime, int> atendimentosPorData = {};
   bool isLoading = true;

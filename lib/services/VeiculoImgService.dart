@@ -14,6 +14,7 @@ class VeiculoImgService {
 
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
+      print('Response body: $body'); // Adicione este print para ver o JSON retornado
       return body.map((json) => VeiculoImg.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load images');

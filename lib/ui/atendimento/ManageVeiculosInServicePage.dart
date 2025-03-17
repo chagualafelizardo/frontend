@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/Atendimento.dart';
 import 'package:app/services/AtendimentoService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ManageAtendimentosPage extends StatefulWidget {
   const ManageAtendimentosPage({super.key});
@@ -11,7 +12,7 @@ class ManageAtendimentosPage extends StatefulWidget {
 
 class _ManageAtendimentosPageState extends State<ManageAtendimentosPage> {
   final AtendimentoService _atendimentoService =
-      AtendimentoService('http://localhost:5000');
+      AtendimentoService(dotenv.env['BASE_URL']!);
 
   List<Atendimento> _atendimentos = [];
   bool _isLoading = false;

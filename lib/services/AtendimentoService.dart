@@ -7,10 +7,11 @@ import 'package:app/models/User.dart';
 import 'package:app/models/Veiculo.dart';
 import 'package:app/services/AtendimentoItemService.dart';
 import 'package:app/services/AtendimentoDocumentService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class AtendimentoService {
-  final String baseUrl = 'http://localhost:5000';
+  final String? baseUrl = dotenv.env['BASE_URL'];
 
   AtendimentoService(String s); // URL da API
 
@@ -104,7 +105,7 @@ Map<DateTime, int> agruparAtendimentosPorData(List<Atendimento> atendimentos) {
   Future<void> addAtendimentoItems(
       List<String> checkedItems, int atendimentoID) async {
     AtendimentoItemService atendimentoItemService =
-        AtendimentoItemService(baseUrl);
+        AtendimentoItemService(baseUrl!);
 
     for (String itemDescription in checkedItems) {
       final atendimentoItem = AtendimentoItem(
@@ -126,7 +127,7 @@ Map<DateTime, int> agruparAtendimentosPorData(List<Atendimento> atendimentos) {
   Future<void> addAtendimentoDocuments(
       List<Map<String, dynamic>> documents, int atendimentoID) async {
     AtendimentoDocumentService atendimentoDocumentService =
-        AtendimentoDocumentService(baseUrl);
+        AtendimentoDocumentService(baseUrl!);
 
     for (var doc in documents) {
       final atendimentoDocument = AtendimentoDocument(

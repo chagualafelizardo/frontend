@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/Role.dart';
 import 'package:app/services/RoleService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewRoleForm.dart';
 import 'EditRoleForm.dart';
 
@@ -13,7 +14,7 @@ class AddRolePage extends StatefulWidget {
 
 class _AddRolePageState extends State<AddRolePage> {
   final RoleService roleService =
-      RoleService('http://localhost:5000'); // Replace with your URL
+      RoleService(dotenv.env['BASE_URL']!); // Replace with your URL
   List<Role> _roles = []; // List to store roles
   int _rowsPerPage = 10; // Number of rows per page
   int _currentPage = 0; // Current page index

@@ -2,9 +2,10 @@ import 'package:app/models/PaymentCriteria.dart';
 import 'package:app/services/PaymentCriteriaService.dart';
 import 'package:app/ui/financas/PaymentCriteria.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ManagePaymentCriteriaPage extends StatefulWidget {
-  final PaymentCriteriaService paymentCriteriaService = PaymentCriteriaService(baseUrl: 'http://localhost:5000');
+  final PaymentCriteriaService paymentCriteriaService = PaymentCriteriaService(baseUrl: dotenv.env['BASE_URL']!);
 
   ManagePaymentCriteriaPage({super.key});
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Allocation.dart';
 import 'package:app/models/UserAtendimentoAllocation.dart';
@@ -27,15 +28,15 @@ class ManageAlocarMotoristaPage extends StatefulWidget {
 class _ManageAlocarMotoristaPageState
     extends State<ManageAlocarMotoristaPage> with SingleTickerProviderStateMixin {
   final AtendimentoService _atendimentoService =
-      AtendimentoService('http://localhost:5000');
+      AtendimentoService(dotenv.env['BASE_URL']!);
 
   final ReservaService _reservaService =
-      ReservaService('http://localhost:5000');
+      ReservaService(dotenv.env['BASE_URL']);
  
   final VeiculoServiceAdd _veiculoService =
-      VeiculoServiceAdd('http://localhost:5000');
+      VeiculoServiceAdd(dotenv.env['BASE_URL']!);
 
-  final UserService _userService = UserService('http://localhost:5000');
+  final UserService _userService = UserService(dotenv.env['BASE_URL']!);
 
   var user,veiculo,state;
 
@@ -269,7 +270,7 @@ void _filterAtendimentos() {
 void _showDriverDetailsDialog(int atendimentoId) async {
   try {
     // Criar uma instância do serviço
-    UserAtendimentoAllocationService service = UserAtendimentoAllocationService(baseUrl: 'http://localhost:5000');
+    UserAtendimentoAllocationService service = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL'] as String);
     // Requisição para buscar o motorista associado ao atendimento
     User motorista = (await service.getDriverForAtendimento(atendimentoId)) as User;
     
@@ -313,8 +314,8 @@ void _showUserDetails({
   required DateTime startDate,
   required DateTime endDate,
 }) {
-  final AllocationService allocationService = AllocationService('http://localhost:5000');
-  final UserAtendimentoAllocationService userAtendimentoAllocationService = UserAtendimentoAllocationService(baseUrl: 'http://localhost:5000');
+  final AllocationService allocationService = AllocationService(dotenv.env['BASE_URL']!);
+  final UserAtendimentoAllocationService userAtendimentoAllocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
 
   print("Chamando _showUserDetails..."); // Log para confirmar a chamada
   List<int> selectedUserIds = []; // Lista para armazenar os IDs dos motoristas selecionados
@@ -667,7 +668,7 @@ void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
 
               // Envia os dados para o backend
               try {
-                EnviaManutencaoService service = EnviaManutencaoService('http://localhost:5000');
+                EnviaManutencaoService service = EnviaManutencaoService(dotenv.env['BASE_URL']!);
                 await service.createEnviaManutencao(manutencao);
 
                 ScaffoldMessenger.of(context).showSnackBar(

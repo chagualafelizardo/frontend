@@ -1,5 +1,6 @@
-// userRoleService.dart
 import 'dart:convert';
+import 'package:app/models/Reserva.dart';
+import 'package:app/models/Role.dart';
 import 'package:app/models/UserRole.dart';
 import 'package:http/http.dart' as http;
 
@@ -31,24 +32,19 @@ class UserRoleService {
     }
   }
 
-  // Método para obter os papéis por ID do usuário
-  Future<List<UserRole>?> getRolesByUserId(int userId) async {
-    try {
-      final response =
-          await http.get(Uri.parse('$baseUrl/userrole/user/$userId'));
+Future<List<Role>> getRolesByUserId(int userId) async {
+  final response = await http.get(Uri.parse('$baseUrl/userrole/user/$userId'));
 
-      if (response.statusCode == 200) {
-        List<dynamic> data = jsonDecode(response.body);
-        return data.map((role) => UserRole.fromJson(role)).toList();
-      } else {
-        print('Failed to fetch roles: ${response.body}');
-        return null;
-      }
-    } catch (error) {
-      print('Error fetching roles: $error');
-      return null;
-    }
+  if (response.statusCode == 200) {
+    final Map<String, dynamic> data = jsonDecode(response.body);
+    print('Resposta da API: $data'); // Adicione este print para depuração
+
+    final List<dynamic> rolesJson = data['roles']; // Ajuste conforme a chave correta
+    return rolesJson.map((roleJson) => Role.fromJson(roleJson)).toList();
+  } else {
+    throw Exception('Failed to load roles for user $userId');
   }
+}
 
   // Método para obter os usuários por ID do papel
   Future<List<UserRole>?> getUsersByRoleId(int roleId) async {
@@ -68,4 +64,60 @@ class UserRoleService {
       return null;
     }
   }
+
+  // Método para remover todas as roles de um usuário
+  Future<bool> removeAllRolesFromUser(int userId) async {
+    try {
+      final response =
+          await http.delete(Uri.parse('$baseUrl/userrole/user/$userId'));
+
+      if (response.statusCode == 200) {
+        print('All roles removed successfully for user ID: $userId');
+        return true;
+      } else {
+        print('Failed to remove roles: ${response.body}');
+        return false;
+      }
+    } catch (error) {
+      print('Error removing roles: $error');
+      return false;
+    }
+  }
+  
+  // Método para buscar todos os motoristas
+  Future<List<User>> getAllDrivers() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/user/drivers'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        return data.map((user) => User.fromJson(user)).toList();
+      } else {
+        print('Failed to fetch drivers: ${response.body}');
+        return [];
+      }
+    } catch (error) {
+      print('Error fetching drivers: $error');
+      return [];
+    }
+  }
+
+  // Método para buscar todos os clientes
+  Future<List<User>> getAllClients() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/user/clients'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        return data.map((user) => User.fromJson(user)).toList();
+      } else {
+        print('Failed to fetch clients: ${response.body}');
+        return [];
+      }
+    } catch (error) {
+      print('Error fetching clients: $error');
+      return [];
+    }
+  }
+  
 }

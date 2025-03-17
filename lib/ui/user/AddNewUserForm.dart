@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:app/models/User.dart';
 import 'package:app/services/UserService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'dart:convert';
@@ -80,7 +81,7 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
 
   Future<void> _loadRoles() async {
     try {
-      RoleService roleService = RoleService('http://localhost:5000');
+      RoleService roleService = RoleService(dotenv.env['BASE_URL']!);
       List<Role> loadedRoles = await roleService.getRoles();
       setState(() {
         roles = loadedRoles;
@@ -198,7 +199,7 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
         print('✅ Usuário criado com sucesso! ID: ${createdUser.id}');
 
         // Atribuir roles ao usuário
-        UserRoleService userRoleService = UserRoleService('http://localhost:5000');
+        UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
         List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
 
         if (selectedRoles.isEmpty) {

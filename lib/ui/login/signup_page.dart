@@ -5,6 +5,7 @@ import 'package:app/services/UserService.dart';
 import 'package:app/models/User.dart';
 import 'package:flutter/services.dart' show ByteData, rootBundle;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({Key? key}) : super(key: key);
@@ -37,7 +38,7 @@ class _SignupPageState extends State<SignupPage> {
 
   Future<void> _fetchUserRoles() async {
     try {
-      final roles = await RoleService('http://localhost:5000').getRoles();
+      final roles = await RoleService(dotenv.env['BASE_URL']!).getRoles();
       setState(() {
         _roles = roles.map((role) => role.name).toList();
         if (_roles.isNotEmpty) {
@@ -90,7 +91,7 @@ class _SignupPageState extends State<SignupPage> {
         // updatedAt: _currentDateTime, roles: [], // Valor DateTime
       );
 
-      final userService = UserService('http://localhost:5000');
+      final userService = UserService(dotenv.env['BASE_URL']!);
       await userService.createUser(user);
 
       ScaffoldMessenger.of(context).showSnackBar(

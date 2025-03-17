@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/Posto.dart';
 import 'package:app/services/PostoService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewPostoForm.dart';
 import 'EditPostoForm.dart';
 import 'ViewPostoPage.dart';
@@ -13,7 +14,7 @@ class ManagePostosPage extends StatefulWidget {
 }
 
 class _ManagePostosPageState extends State<ManagePostosPage> {
-  final PostoService postoService = PostoService('http://localhost:5000');
+  final PostoService postoService = PostoService(dotenv.env['BASE_URL']!);
   List<Posto> _postos = [];
   int _currentPage = 1;
   final int _itemsPerPage = 10;

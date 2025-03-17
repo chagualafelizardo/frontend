@@ -1,12 +1,12 @@
 class Role {
-  final int? id;
+  final int id;
   final String name;
   bool? selected; // Campo para armazenar o estado selecionado
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Role({
-    this.id,
+    required this.id,
     required this.name,
     this.selected = false, // Definindo como falso por padrão
     required this.createdAt,
@@ -18,10 +18,8 @@ class Role {
       id: json['id'],
       name: json['name'],
       selected: json['selected'] ?? false,
-      createdAt:
-          DateTime.parse(json['createdAt']), // Converte a string para DateTime
-      updatedAt:
-          DateTime.parse(json['updatedAt']), // Converte a string para DateTime
+      createdAt: DateTime.parse(json['createdAt']), // Converte a string para DateTime
+      updatedAt: DateTime.parse(json['updatedAt']), // Converte a string para DateTime
     );
   }
 

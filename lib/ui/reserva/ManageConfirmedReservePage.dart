@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Atendimento.dart';
 import 'package:app/ui/atendimento/AtendimentoForm.dart';
@@ -19,7 +20,7 @@ class ManageConfirmedReservasPage extends StatefulWidget {
 class _ManageConfirmedReservasPageState
     extends State<ManageConfirmedReservasPage> {
   final ReservaService _reservaService =
-      ReservaService('http://localhost:5000');
+      ReservaService(dotenv.env['BASE_URL']!);
 
   List<Reserva> _reservas = [];
   List<Reserva> _filteredReservas = [];
@@ -143,9 +144,6 @@ class _ManageConfirmedReservasPageState
  void _showVeiculoDetailsDialog(Veiculo veiculo) async {
   // Verificando o conteúdo de imagemBase64 para depuração
   print('Imagem Base64: ${veiculo.imagemBase64}');
-  
-  // Buscar imagens adicionais usando VeiculoImgService
-  // List<String> imagensAdicionais = (await VeiculoImgService('http://localhost:5000').fetchImagesByVehicleId(veiculo.id)).cast<String>();
 
   showDialog(
     context: context,
@@ -606,7 +604,7 @@ String _addPadding(String base64String) {
 
 class VeiculoService {
   Future<Veiculo> getVeiculoByMatricula(String matricula) async {
-    final response = await http.get(Uri.parse('http://localhost:5000/veiculo/matricula/$matricula'));
+    final response = await http.get(Uri.parse('http://localhost:0/veiculo/matricula/$matricula'));
 
     if (response.statusCode == 200) {
       // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
@@ -620,7 +618,7 @@ class VeiculoService {
 
 class UserService {
   Future<User> getUserByName(String fullName) async {
-    final response = await http.get(Uri.parse('http://localhost:5000/user/user/$fullName'));
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/user/$fullName'));
 
     if (response.statusCode == 200) {
       // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson

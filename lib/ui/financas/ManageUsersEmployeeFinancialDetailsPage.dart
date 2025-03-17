@@ -3,6 +3,7 @@ import 'package:app/ui/financas/ManageBankDetailsPage.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/UserRenderImgBase64.dart';
 import 'package:app/services/UserService.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'dart:typed_data';
 import 'dart:convert';
@@ -15,7 +16,7 @@ class ManageUsersEmployeeFinancialDetailsPage extends StatefulWidget {
 }
 
 class _ManageUsersEmployeeFinancialDetailsPageState extends State<ManageUsersEmployeeFinancialDetailsPage> {
-  final UserService userService = UserService('http://localhost:5000');
+  final UserService userService = UserService(dotenv.env['BASE_URL']!);
   List<UserBase64> _users = [];
   String _searchQuery = '';
   bool _isGridView = true;
@@ -252,7 +253,7 @@ Widget build(BuildContext context) {
                                           height: 400,
                                           child: ManageBankDetailsPage(
                                             service: BankDetailsService(
-                                              baseUrl: 'http://localhost:5000',
+                                              baseUrl: dotenv.env['BASE_URL']!,
                                               userID: user.id!, 
                                               username: '${user.firstName} ${user.lastName}',
                                             ), 
@@ -345,7 +346,7 @@ Widget build(BuildContext context) {
                                                   height: 400,
                                                   child: ManageBankDetailsPage(
                                                     service: BankDetailsService(
-                                                      baseUrl: 'http://localhost:5000',
+                                                      baseUrl: dotenv.env['BASE_URL']!,
                                                       userID: user.id!, 
                                                       username: '${user.firstName} ${user.lastName}',
                                                     ), 

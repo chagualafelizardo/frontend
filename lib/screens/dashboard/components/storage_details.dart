@@ -1,5 +1,6 @@
 import 'package:app/ui/charts/ReservaPieChart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../constants.dart';
 import 'chart.dart';
 import 'storage_info_card.dart';
@@ -14,7 +15,7 @@ class StorageDetails extends StatefulWidget {
 }
 
 class _StorageDetailsState extends State<StorageDetails> {
-  final ReservaService _reservaService = ReservaService('http://localhost:5000');
+  final ReservaService _reservaService = ReservaService(dotenv.env['BASE_URL']);
   Map<DateTime, int> reservasPorData = {};
   bool _isLoading = true;
   DateTime? _startDate;

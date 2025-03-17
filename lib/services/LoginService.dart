@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class LoginService {
-  static const String baseUrl = 'http://localhost:5000'; // Local
+  static String? baseUrl = dotenv.env['BASE_URL']; // Local
   // static const String baseUrl =
   //     'https://api-backend-p76c.onrender.com'; // Remote
 

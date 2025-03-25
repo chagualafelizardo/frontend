@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:app/models/VeiculoDetails.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:app/services/VeiculoAddService.dart';
@@ -9,15 +10,14 @@ import 'package:app/ui/veiculo/ImagePreviewPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class EditVeiculoForm extends StatefulWidget {
-  final VeiculoServiceAdd veiculoServiceAdd;
+  final VeiculoServiceAdd veiculoServiceAdd = VeiculoServiceAdd(dotenv.env['BASE_URL']!);
   final VeiculoAdd veiculo;
   final VoidCallback onVeiculoUpdated;
 
-  const EditVeiculoForm({
+  EditVeiculoForm({
     Key? key,
-    required this.veiculoServiceAdd,
     required this.veiculo,
-    required this.onVeiculoUpdated,
+    required this.onVeiculoUpdated, required VeiculoServiceAdd veiculoServiceAdd,
   }) : super(key: key);
 
   @override
@@ -43,15 +43,15 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
   bool _rentalIncludesDriver = false;
 
   final List<Uint8List> _additionalImages = [];
-  List<String> _existingImageUrls = []; // URLs das imagens existentes
-  final List<Uint8List> _newAdditionalImages = []; // Novas imagens adicionais
-
+  List<String> _existingImageUrls = [];
+  final List<Uint8List> _newAdditionalImages = [];
+  List<VeiculoDetails> _veiculoDetails = [];
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
 
     // Preenche os campos com os dados do veículo
     _matriculaController.text = widget.veiculo.matricula;
@@ -67,23 +67,44 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
     _selectedState = widget.veiculo.state;
     _rentalIncludesDriver = widget.veiculo.rentalIncludesDriver;
 
-    // Converte a imagem base64 para bytes
+    // Carrega a imagem principal em segundo plano
     if (widget.veiculo.imagemBase64.isNotEmpty) {
-      _imageBytes = base64Decode(widget.veiculo.imagemBase64);
+      _loadImageBytes(widget.veiculo.imagemBase64);
     }
 
-    // Carrega as imagens adicionais existentes (se houver)
+    // Carrega as imagens adicionais e detalhes em segundo plano
     _loadExistingImages();
+    _loadVeiculoDetails();
   }
 
-  // Método para carregar as imagens adicionais existentes
+  Future<void> _loadImageBytes(String base64) async {
+    try {
+      final bytes = base64Decode(base64);
+      setState(() {
+        _imageBytes = bytes;
+      });
+    } catch (error) {
+      print('Failed to decode image: $error');
+    }
+  }
+
+  Future<void> _loadVeiculoDetails() async {
+    try {
+      final details = await widget.veiculoServiceAdd.fetchDetailsByVehicleId(widget.veiculo.id);
+      setState(() {
+        _veiculoDetails = details;
+      });
+    } catch (error) {
+      print('Failed to load vehicle details: $error');
+    }
+  }
+
   Future<void> _loadExistingImages() async {
-    final VeiculoImgService veiculoImgService =
-        VeiculoImgService(dotenv.env['BASE_URL']!);
+    final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
     try {
       final images = await veiculoImgService.fetchImagesByVehicleId(widget.veiculo.id);
       setState(() {
-        _existingImageUrls = images.cast<String>();
+        _existingImageUrls = images.map((img) => img.imageBase64).toList();
       });
     } catch (error) {
       print('Failed to load existing images: $error');
@@ -142,20 +163,16 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
       );
 
       try {
-        // Atualiza o veículo
         await widget.veiculoServiceAdd.updateVeiculo(veiculo);
 
-        // Faz upload das novas imagens adicionais (se houver)
         if (_newAdditionalImages.isNotEmpty) {
           await _uploadAdditionalImages(veiculo.id);
         }
 
-        // Remove as imagens existentes que foram deletadas
         if (_existingImageUrls.isNotEmpty) {
           await _deleteRemovedImages(veiculo.id);
         }
 
-        // Notifica que o veículo foi atualizado
         widget.onVeiculoUpdated();
         Navigator.of(context).pop();
       } catch (error) {
@@ -167,9 +184,7 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
   }
 
   Future<void> _uploadAdditionalImages(int veiculoId) async {
-    final VeiculoImgService veiculoImgService =
-        VeiculoImgService(dotenv.env['BASE_URL']!);
-
+    final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
     for (var image in _newAdditionalImages) {
       try {
         await veiculoImgService.addImageToVehicle(veiculoId, image);
@@ -182,9 +197,7 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
   }
 
   Future<void> _deleteRemovedImages(int veiculoId) async {
-    final VeiculoImgService veiculoImgService =
-        VeiculoImgService(dotenv.env['BASE_URL']!);
-
+    final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
     for (var imageUrl in _existingImageUrls) {
       try {
         await veiculoImgService.deleteImageById(veiculoId);
@@ -194,6 +207,12 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
         );
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose(); // Descarta o TabController
+    super.dispose();
   }
 
   @override
@@ -210,12 +229,14 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
               tabs: const [
                 Tab(text: 'Vehicle Info'),
                 Tab(text: 'Other Vehicle Images'),
+                Tab(text: 'Vehicle Details'),
               ],
             ),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
+                  // Primeira aba: Vehicle Info
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Row(
@@ -231,8 +252,7 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
                             child: _imageBytes != null
                                 ? Image.memory(_imageBytes!)
                                 : widget.veiculo.imagemBase64.isNotEmpty
-                                    ? Image.memory(
-                                        base64Decode(widget.veiculo.imagemBase64))
+                                    ? Image.memory(base64Decode(widget.veiculo.imagemBase64))
                                     : const Center(child: Text('No Image')),
                           ),
                         ),
@@ -244,121 +264,160 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  // Campo Matrícula
                                   TextFormField(
                                     controller: _matriculaController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Matricula'),
-                                    validator: (value) =>
-                                        value == null || value.isEmpty
-                                            ? 'Please enter matricula'
-                                            : null,
+                                    decoration: const InputDecoration(labelText: 'Matrícula'),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira a matrícula';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Marca
                                   TextFormField(
                                     controller: _marcaController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Marca'),
-                                    validator: (value) =>
-                                        value == null || value.isEmpty
-                                            ? 'Please enter marca'
-                                            : null,
+                                    decoration: const InputDecoration(labelText: 'Marca'),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira a marca';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Modelo
                                   TextFormField(
                                     controller: _modeloController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Modelo'),
-                                    validator: (value) =>
-                                        value == null || value.isEmpty
-                                            ? 'Please enter modelo'
-                                            : null,
+                                    decoration: const InputDecoration(labelText: 'Modelo'),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o modelo';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Ano
                                   TextFormField(
                                     controller: _anoController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Ano'),
+                                    decoration: const InputDecoration(labelText: 'Ano'),
                                     keyboardType: TextInputType.number,
-                                    validator: (value) =>
-                                        value == null || value.isEmpty
-                                            ? 'Please enter ano'
-                                            : null,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o ano';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Cor
                                   TextFormField(
                                     controller: _corController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Cor'),
+                                    decoration: const InputDecoration(labelText: 'Cor'),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira a cor';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Número do Chassi
                                   TextFormField(
                                     controller: _numChassiController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Num Chassi'),
+                                    decoration: const InputDecoration(labelText: 'Número do Chassi'),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o número do chassi';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Número de Lugares
                                   TextFormField(
                                     controller: _numLugaresController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Num Lugares'),
+                                    decoration: const InputDecoration(labelText: 'Número de Lugares'),
                                     keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o número de lugares';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Número do Motor
                                   TextFormField(
                                     controller: _numMotorController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Num Motor'),
+                                    decoration: const InputDecoration(labelText: 'Número do Motor'),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o número do motor';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Campo Número de Portas
                                   TextFormField(
                                     controller: _numPortasController,
-                                    decoration:
-                                        const InputDecoration(labelText: 'Num Portas'),
+                                    decoration: const InputDecoration(labelText: 'Número de Portas'),
                                     keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o número de portas';
+                                      }
+                                      return null;
+                                    },
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Dropdown para Tipo de Combustível
                                   DropdownButtonFormField<String>(
                                     value: _selectedCombustivel,
-                                    decoration: const InputDecoration(
-                                        labelText: 'Tipo Combustível'),
-                                    items: <String>['GASOLINA', 'DIESEL', 'GASOLEO']
-                                        .map((String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
+                                    decoration: const InputDecoration(labelText: 'Tipo de Combustível'),
+                                    items: ['GASOLINA', 'DIESEL', 'ELÉTRICO', 'HÍBRIDO']
+                                        .map((combustivel) => DropdownMenuItem(
+                                              value: combustivel,
+                                              child: Text(combustivel),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) {
                                       setState(() {
-                                        _selectedCombustivel = newValue!;
+                                        _selectedCombustivel = value!;
                                       });
                                     },
-                                    validator: (value) =>
-                                        value == null || value.isEmpty
-                                            ? 'Please select a tipo combustivel'
-                                            : null,
                                   ),
+                                  const SizedBox(height: 16),
+                                  // Dropdown para Estado
                                   DropdownButtonFormField<String>(
                                     value: _selectedState,
-                                    decoration:
-                                        const InputDecoration(labelText: 'State'),
-                                    items: <String>['Free', 'Occupied']
-                                        .map((String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
+                                    decoration: const InputDecoration(labelText: 'Estado'),
+                                    items: ['Free', 'Occupied', 'Maintenance']
+                                        .map((state) => DropdownMenuItem(
+                                              value: state,
+                                              child: Text(state),
+                                            ))
+                                        .toList(),
+                                    onChanged: (value) {
                                       setState(() {
-                                        _selectedState = newValue!;
+                                        _selectedState = value!;
                                       });
                                     },
-                                    validator: (value) =>
-                                        value == null || value.isEmpty
-                                            ? 'Please select a state'
-                                            : null,
                                   ),
-                                  SwitchListTile(
-                                    title: const Text('Rental Includes Driver'),
+                                  const SizedBox(height: 16),
+                                  // Checkbox para Incluir Motorista
+                                  CheckboxListTile(
+                                    title: const Text('Incluir Motorista'),
                                     value: _rentalIncludesDriver,
-                                    onChanged: (bool value) {
+                                    onChanged: (value) {
                                       setState(() {
-                                        _rentalIncludesDriver = value;
+                                        _rentalIncludesDriver = value!;
                                       });
                                     },
-                                    secondary: const Icon(Icons.directions_car),
                                   ),
                                 ],
                               ),
@@ -368,105 +427,188 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
                       ],
                     ),
                   ),
+                  // Segunda aba: Other Vehicle Images
                   Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Stack(
-                        children: [
-                          // GridView para exibir as imagens
-                          GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3, // 3 colunas
-                              mainAxisSpacing: 8, // Espaçamento vertical
-                              crossAxisSpacing: 8, // Espaçamento horizontal
-                            ),
-                            itemCount: _existingImageUrls.length + _newAdditionalImages.length,
+                    padding: const EdgeInsets.all(16.0),
+                    child: Stack(
+                      children: [
+                        GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                          itemCount: _existingImageUrls.length + _newAdditionalImages.length,
+                          itemBuilder: (context, index) {
+                            if (index < _existingImageUrls.length) {
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ImagePreviewPage(
+                                        images: _existingImageUrls
+                                            .map((base64) => base64Decode(base64))
+                                            .toList(),
+                                        initialIndex: index,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Stack(
+                                  children: [
+                                    Image.memory(
+                                      base64Decode(_existingImageUrls[index]),
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close, color: Colors.red),
+                                        onPressed: () => _removeAdditionalImage(index, true),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              final newIndex = index - _existingImageUrls.length;
+                              return GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ImagePreviewPage(
+                                        images: _newAdditionalImages,
+                                        initialIndex: newIndex,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Stack(
+                                  children: [
+                                    Image.memory(
+                                      _newAdditionalImages[newIndex],
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close, color: Colors.red),
+                                        onPressed: () => _removeAdditionalImage(newIndex, false),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                        Positioned(
+                          bottom: 10,
+                          right: 10,
+                          child: FloatingActionButton(
+                            onPressed: _pickAdditionalImage,
+                            child: const Icon(Icons.add),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Terceira aba: Vehicle Details
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Vehicle Details',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _veiculoDetails.length,
                             itemBuilder: (context, index) {
-                              if (index < _existingImageUrls.length) {
-                                // Imagens existentes
-                                return GestureDetector(
-                                  onTap: () {
-                                    // Navegar para a página de visualização de imagem
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ImagePreviewPage(
-                                          images: _existingImageUrls
-                                              .map((url) => base64Decode(url))
-                                              .toList(),
-                                          initialIndex: index,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Stack(
+                              final detail = _veiculoDetails[index];
+                              return Card(
+                                margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                elevation: 3,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Exibir a imagem
-                                      Image.memory(
-                                        base64Decode(_existingImageUrls[index]),
-                                        fit: BoxFit.cover,
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            flex: 2,
+                                            child: Text(
+                                              detail.description,
+                                              style: const TextStyle(fontWeight: FontWeight.w500),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              detail.startDate.toString().split(' ')[0],
+                                              style: const TextStyle(color: Colors.grey),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              detail.endDate.toString().split(' ')[0],
+                                              style: const TextStyle(color: Colors.grey),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      // Botão para remover a imagem
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, color: Colors.red),
-                                          onPressed: () => _removeAdditionalImage(index, true),
-                                        ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            flex: 2,
+                                            child: Text(
+                                              detail.obs ?? 'N/A',
+                                              style: const TextStyle(color: Colors.grey),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete, color: Colors.red),
+                                            onPressed: () {
+                                              setState(() {
+                                                _veiculoDetails.removeAt(index);
+                                              });
+                                            },
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                );
-                              } else {
-                                // Novas imagens adicionais
-                                final newIndex = index - _existingImageUrls.length;
-                                return GestureDetector(
-                                  onTap: () {
-                                    // Navegar para a página de visualização de imagem
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ImagePreviewPage(
-                                          images: _newAdditionalImages,
-                                          initialIndex: newIndex,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Stack(
-                                    children: [
-                                      // Exibir a imagem
-                                      Image.memory(
-                                        _newAdditionalImages[newIndex],
-                                        fit: BoxFit.cover,
-                                      ),
-                                      // Botão para remover a imagem
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, color: Colors.red),
-                                          onPressed: () => _removeAdditionalImage(newIndex, false),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
+                                ),
+                              );
                             },
                           ),
-                          // Botão para adicionar novas imagens
-                          Positioned(
-                            bottom: 10,
-                            right: 10,
-                            child: FloatingActionButton(
-                              onPressed: _pickAdditionalImage,
-                              child: const Icon(Icons.add),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),

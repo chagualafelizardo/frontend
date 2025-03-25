@@ -36,8 +36,7 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
   final TextEditingController _phone1Controller = TextEditingController();
   final TextEditingController _phone2Controller = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
   DateTime? _selectedBirthdate;
   Uint8List? _imageBytes;
@@ -137,114 +136,61 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
     }
   }
 
- Future<void> _addUser() async {
-  if (_formKey.currentState!.validate()) {
-    print('✅ Formulário validado com sucesso.');
-
-    try {
-      // Captura os valores dos campos
-      String? imageBase64;
-      if (_imageBytes != null) {
-        imageBase64 = base64Encode(_imageBytes!);
-        print('🖼️ Imagem convertida para base64.');
-      }
-
-      String username = _usernameController.text;
-      String firstName = _firstNameController.text;
-      String lastName = _lastNameController.text;
-      String email = _emailController.text;
-      String password = _passwordController.text;
-      String address = _addressController.text.isEmpty ? '' : _addressController.text;
-      String phone1 = _phone1Controller.text.isEmpty ? '' : _phone1Controller.text;
-      String phone2 = _phone2Controller.text.isEmpty ? '' : _phone2Controller.text;
-      String state = _state ?? '';
-      String gender = _gender ?? '';
-      String birthdate = _selectedBirthdate?.toIso8601String() ?? '';
-
-      // Validando campos obrigatórios
-      if (username.isEmpty || firstName.isEmpty || lastName.isEmpty || email.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Please fill all required fields.')),
-        );
-        print('❌ Erro: Campos obrigatórios estão vazios.');
-        return;
-      }
-
-      // Criando o objeto User
-      print('🔄 Criando objeto User...');
-      User newUser = User(
-        id: widget.user?.id ?? 0,
-        username: username,
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        address: address,
-        neighborhood: _neighborhoodController.text.isEmpty ? '' : _neighborhoodController.text,
-        phone1: phone1,
-        phone2: phone2,
-        password: password,
-        img: imageBase64 ?? '',
-        state: state,
-        gender: gender,
-        birthdate: birthdate,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      print('✅ Usuário criado: ${newUser.toJson()}');
-
-      // Operação de criação/atualização
-      if (widget.user == null) { // Se `widget.user` for `null`, criar um novo usuário
-        print('🚀 Criando novo usuário...');
-        User createdUser = await widget.userService.createUser(newUser);
-        print('✅ Usuário criado com sucesso! ID: ${createdUser.id}');
-
-        // Atribuir roles ao usuário
-        UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
-        List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
-
-        if (selectedRoles.isEmpty) {
-          print('⚠️ Nenhuma role selecionada para o usuário.');
-        } else {
-          print('🛠️ Roles selecionadas para atribuir:');
-          for (var role in selectedRoles) {
-            print('- Role ID: ${role.id}, Nome: ${role.name}');
-          }
-
-          for (var role in selectedRoles) {
-            print('🔄 Atribuindo role ${role.id} ao usuário ${createdUser.id}...');
-            await userRoleService.assignRoleToUser(createdUser.id, role.id!);
-            print('✅ Role ${role.id} atribuída com sucesso!');
-          }
+  Future<void> _addUser() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        String? imageBase64;
+        if (_imageBytes != null) {
+          imageBase64 = base64Encode(_imageBytes!);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🎉 User "${newUser.username}" added successfully with roles!')),
+        User newUser = User(
+          id: widget.user?.id ?? 0,
+          username: _usernameController.text,
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          email: _emailController.text,
+          address: _addressController.text,
+          neighborhood: _neighborhoodController.text,
+          phone1: _phone1Controller.text,
+          phone2: _phone2Controller.text,
+          password: _passwordController.text,
+          img: imageBase64 ?? '',
+          state: _state,
+          gender: _gender,
+          birthdate: _selectedBirthdate?.toIso8601String() ?? '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         );
-      } else {
-        // Atualizar usuário existente
-        // print('✏️ Atualizando usuário existente ID: ${widget.user!.id}...');
-        // await widget.userService.updateUser(newUser);
-        // print('✅ Usuário atualizado com sucesso!');
 
+        if (widget.user == null) {
+          User createdUser = await widget.userService.createUser(newUser);
+          UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
+          List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
+
+          for (var role in selectedRoles) {
+            await userRoleService.assignRoleToUser(createdUser.id, role.id!);
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('User "${newUser.username}" added successfully!')),
+          );
+        } else {
+          // await widget.userService.updateUser(newUser);
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(content: Text('User "${newUser.username}" updated successfully!')),
+          // );
+        }
+
+        widget.onUserAdded();
+        Navigator.of(context).pop();
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ User "${newUser.username}" updated successfully!')),
+          const SnackBar(content: Text('Failed to add/edit user. Please try again.')),
         );
       }
-
-      widget.onUserAdded();
-      Navigator.of(context).pop();
-    } catch (e, stackTrace) {
-      print('❌ Erro ao adicionar/editar usuário: $e');
-      print('📌 StackTrace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Failed to add/edit user. Please try again.')),
-      );
     }
-  } else {
-    print('❌ Erro: Formulário inválido.');
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +224,11 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
       actions: [
         ElevatedButton(
           onPressed: _addUser,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
           child: Text(widget.user == null ? 'Add User' : 'Update User'),
         ),
       ],
@@ -285,152 +236,231 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
   }
 
   Widget _buildUserDataForm() {
-  return Padding(
-    padding: const EdgeInsets.all(8.0),
-    child: Form(
-      key: _formKey,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: ClipOval(
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.grey[300],
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: _imageBytes != null
+                        ? MemoryImage(_imageBytes!)
+                        : null,
                     child: _imageBytes == null
-                        ? const Center(child: Text('Select Image'))
-                        : Image.memory(_imageBytes!, fit: BoxFit.cover),
+                        ? const Icon(Icons.camera_alt, size: 40, color: Colors.grey)
+                        : null,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-            ),
-            TextFormField(
-              controller: _firstNameController,
-              decoration: const InputDecoration(labelText: 'First Name'),
-            ),
-            TextFormField(
-              controller: _lastNameController,
-              decoration: const InputDecoration(labelText: 'Last Name'),
-            ),
-            const SizedBox(height: 20),
-            const Text("Gender", style: TextStyle(fontSize: 16)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Radio<String>(
-                  value: 'M',
-                  groupValue: _gender,
-                  onChanged: (value) {
-                    setState(() {
-                      _gender = value!;
-                    });
-                  },
-                ),
-                const Text("Male"),
-                Radio<String>(
-                  value: 'F',
-                  groupValue: _gender,
-                  onChanged: (value) {
-                    setState(() {
-                      _gender = value!;
-                    });
-                  },
-                ),
-                const Text("Female"),
-              ],
-            ),
-            TextFormField(
-              controller: _birthdateController,
-              readOnly: true,
-              onTap: () => _selectBirthdate(context),
-              decoration: const InputDecoration(labelText: 'Birthdate'),
-            ),
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextFormField(
-              controller: _addressController,
-              decoration: const InputDecoration(labelText: 'Address'),
-            ),
-            TextFormField(
-              controller: _neighborhoodController,
-              decoration: const InputDecoration(labelText: 'Neighborhood'),
-            ),
-            TextFormField(
-              controller: _phone1Controller,
-              decoration: const InputDecoration(labelText: 'Phone 1'),
-            ),
-            TextFormField(
-              controller: _phone2Controller,
-              decoration: const InputDecoration(labelText: 'Phone 2'),
-            ),
-            TextFormField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            TextFormField(
-              controller: _confirmPasswordController,
-              decoration: const InputDecoration(labelText: 'Confirm Password'),
-              obscureText: true,
-            ),
-            DropdownButtonFormField<String>(
-              value: _state,
-              items: ['active', 'inactive']
-                  .map((state) =>
-                      DropdownMenuItem(value: state, child: Text(state)))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _state = value!;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'State'),
-            ),
-          ],
+              const SizedBox(height: 20),
+              _buildStyledTextField(
+                controller: _usernameController,
+                labelText: 'Username',
+                icon: Icons.person,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _firstNameController,
+                labelText: 'First Name',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _lastNameController,
+                labelText: 'Last Name',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Gender",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildGenderRadio('M', 'Male'),
+                  const SizedBox(width: 20),
+                  _buildGenderRadio('F', 'Female'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _birthdateController,
+                labelText: 'Birthdate',
+                icon: Icons.calendar_today,
+                readOnly: true,
+                onTap: () => _selectBirthdate(context),
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _emailController,
+                labelText: 'Email',
+                icon: Icons.email,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _addressController,
+                labelText: 'Address',
+                icon: Icons.location_on,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _neighborhoodController,
+                labelText: 'Neighborhood',
+                icon: Icons.location_city,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _phone1Controller,
+                labelText: 'Phone 1',
+                icon: Icons.phone,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _phone2Controller,
+                labelText: 'Phone 2',
+                icon: Icons.phone,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _passwordController,
+                labelText: 'Password',
+                icon: Icons.lock,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _confirmPasswordController,
+                labelText: 'Confirm Password',
+                icon: Icons.lock,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledDropdown(
+                value: _state,
+                items: ['active', 'inactive'],
+                labelText: 'State',
+                icon: Icons.flag,
+                onChanged: (value) {
+                  setState(() {
+                    _state = value!;
+                  });
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
-
-
-  Widget _buildRolesList() {
-  if (_loadingRoles) {
-    return const Center(child: CircularProgressIndicator());
+    );
   }
 
-  return ListView.builder(
-    itemCount: roles.length,
-    itemBuilder: (context, index) {
-      // Define a cor alternada com base no índice
-      final Color tileColor = index % 2 == 0
-          ? const Color.fromARGB(255, 14, 13, 13) // Cor clara para linhas pares
-          : const Color.fromARGB(255, 53, 51, 51);        // Cor branca para linhas ímpares
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    bool readOnly = false,
+    bool obscureText = false,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.black87),
+          prefixIcon: Icon(icon, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        style: const TextStyle(color: Colors.black87), // Cor do texto digitado
+        readOnly: readOnly,
+        obscureText: obscureText,
+        onTap: onTap,
+      ),
+    );
+  }
 
-      return Container(
-        color: tileColor, // Define a cor do fundo
-        child: CheckboxListTile(
-          title: Text(roles[index].name ?? 'Role ${index + 1}'),
-          value: roles[index].selected ?? false,
-          onChanged: (bool? newValue) {
+  Widget _buildStyledDropdown({
+    required String value,
+    required List<String> items,
+    required String labelText,
+    required IconData icon,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item, style: const TextStyle(color: Colors.black87))))
+            .toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.black87),
+          prefixIcon: Icon(icon, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        style: const TextStyle(color: Colors.black87), // Cor do texto selecionado
+      ),
+    );
+  }
+
+  Widget _buildGenderRadio(String value, String label) {
+    return Row(
+      children: [
+        Radio<String>(
+          value: value,
+          groupValue: _gender,
+          onChanged: (value) {
             setState(() {
-              roles[index].selected = newValue;
+              _gender = value!;
             });
           },
         ),
-      );
-    },
-  );
-}
+        Text(label, style: const TextStyle(color: Colors.black87)),
+      ],
+    );
+  }
+
+  Widget _buildRolesList() {
+    if (_loadingRoles) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return ListView.builder(
+      itemCount: roles.length,
+      itemBuilder: (context, index) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: CheckboxListTile(
+            title: Text(roles[index].name ?? 'Role ${index + 1}', style: const TextStyle(color: Colors.white)),
+            value: roles[index].selected ?? false,
+            onChanged: (bool? newValue) {
+              setState(() {
+                roles[index].selected = newValue;
+              });
+            },
+          ),
+        );
+      },
+    );
+  }
 }

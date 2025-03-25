@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:app/models/Veiculoimg.dart';
+import 'package:app/services/VeiculoImgService.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Atendimento.dart';
@@ -35,12 +37,31 @@ class _ManageConfirmedReservasPageState
   String _vehicleFilter = '';
   String _userFilter = '';
   bool _isGridView = true;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _fetchReservas();
   }
+
+  // Método para abrir o DatePicker e selecionar a data
+Future<void> _selectDate(BuildContext context) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: DateTime.now(),
+    firstDate: DateTime(2000),
+    lastDate: DateTime(2100),
+  );
+
+  if (picked != null && picked != _selectedDate) {
+    setState(() {
+      _selectedDate = picked;
+      _fetchReservas(); // Aplicar os filtros após selecionar a data
+    });
+  }
+}
+
 
   Future<void> _fetchReservas() async {
     if (_isLoading || !_hasMore) return;
@@ -59,14 +80,13 @@ class _ManageConfirmedReservasPageState
         if (reservas.isEmpty) {
           _hasMore = false;
         } else {
-          // Filtrar apenas as reservas confirmadas
+          // Filtrar apenas as reservas confirmadas e que correspondem à data selecionada
           _reservas = reservas
               .where((reserva) =>
                   reserva.state == 'Confirmed' &&
                   (reserva.destination.contains(_destinationFilter)) &&
-                  (reserva.state.contains(_stateFilter)) &&
-                  (reserva.veiculo.matricula.contains(_vehicleFilter)) &&
-                  (reserva.user.firstName.contains(_userFilter)))
+                  (_selectedDate == null ||
+                      reserva.date == "${_selectedDate!.toLocal()}".split(' ')[0]))
               .toList();
 
           // Ordenar a lista de reservas pelo ID da reserva em ordem decrescente
@@ -84,6 +104,7 @@ class _ManageConfirmedReservasPageState
       });
     }
   }
+
 
   Future<void> _uncheckReserva(int reservaId) async {
     bool? confirm = await showDialog<bool>(
@@ -142,8 +163,26 @@ class _ManageConfirmedReservasPageState
 
     // Use o alias para referenciar a classe Veiculo corretamente
  void _showVeiculoDetailsDialog(Veiculo veiculo) async {
-  // Verificando o conteúdo de imagemBase64 para depuração
-  print('Imagem Base64: ${veiculo.imagemBase64}');
+  // Instância do serviço para buscar as imagens
+  final veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
+
+  // Estado para armazenar as imagens adicionais
+  List<VeiculoImg> imagensAdicionais = [];
+
+  // Função para buscar as imagens do veículo
+  Future<void> fetchImages() async {
+    try {
+      final images = await veiculoImgService.fetchImagesByVehicleId(veiculo.id);
+      setState(() {
+        imagensAdicionais = images;
+      });
+    } catch (e) {
+      print('Failed to fetch images: $e');
+    }
+  }
+
+  // Buscar as imagens ao abrir o diálogo
+  await fetchImages();
 
   showDialog(
     context: context,
@@ -151,108 +190,145 @@ class _ManageConfirmedReservasPageState
       return AlertDialog(
         title: Text(veiculo.matricula),
         content: SizedBox(
-          width: 600, // Largura ajustada do diálogo
+          width: 600, // Adjusted dialog width
           child: DefaultTabController(
-            length: 3, // Número de abas
+            length: 3, // Number of tabs
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Abas no topo
+                // Header with license plate and vehicle image
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey),
+                        ),
+                        child: veiculo.imagemBase64!.isEmpty
+                            ? Image.memory(
+                                base64Decode(veiculo.imagemBase64 as String),
+                                fit: BoxFit.cover,
+                              )
+                            : const Center(child: Icon(Icons.car_repair, size: 40, color: Colors.grey)),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            veiculo.matricula,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '${veiculo.marca} ${veiculo.modelo}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Tabs
                 const TabBar(
                   tabs: [
-                    Tab(text: 'Detalhes'),
-                    Tab(text: 'Informações Genéricas'),
-                    Tab(text: 'Imagens Adicionais Veiculo'),
+                    Tab(text: 'Details'),
+                    Tab(text: 'General Info'),
+                    Tab(text: 'Additional Images'),
                   ],
                 ),
-                // Conteúdo das abas
-                SizedBox(
-                  height: 400, // Altura ajustada do conteúdo
+                Expanded(
                   child: TabBarView(
                     children: [
-                      // Primeira aba: Detalhes do Veículo
+                      // "Details" Tab
                       SingleChildScrollView(
-                        child: Row(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Imagem à esquerda
-                            Container(
-                              width: 250, // Largura da imagem ajustada
-                              height: 250, // Altura da imagem ajustada
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: veiculo.imagemBase64!.isNotEmpty
-                                  ? Image.memory(
-                                      base64Decode(veiculo.imagemBase64!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : const Center(child: Text('No Image Available')),
-                            ),
-                            const SizedBox(width: 16), // Espaçamento entre a imagem e os detalhes
-                            // Detalhes do veículo à direita
-                            Flexible(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('ID: ${veiculo.id}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    Text('Matricula: ${veiculo.matricula}'),
-                                    Text('Marca: ${veiculo.marca}'),
-                                    Text('Modelo: ${veiculo.modelo}'),
-                                    Text('Ano: ${veiculo.ano}'),
-                                    Text('Cor: ${veiculo.cor}'),
-                                    Text('Num Chassi: ${veiculo.numChassi}'),
-                                    Text('Num Lugares: ${veiculo.numLugares}'),
-                                    Text('Num Motor: ${veiculo.numMotor}'),
-                                    Text('Num Portas: ${veiculo.numPortas}'),
-                                    Text('Tipo Combustível: ${veiculo.tipoCombustivel}'),
-                                    Text('State: ${veiculo.state}'),
-                                  ],
-                                ),
-                              ),
-                            ),
+                            _buildDetailRow(Icons.confirmation_number, 'ID', veiculo.id.toString()),
+                            _buildDetailRow(Icons.directions_car, 'License Plate', veiculo.matricula),
+                            _buildDetailRow(Icons.branding_watermark, 'Brand', veiculo.marca),
+                            _buildDetailRow(Icons.model_training, 'Model', veiculo.modelo),
+                            _buildDetailRow(Icons.calendar_today, 'Year', veiculo.ano.toString()),
+                            _buildDetailRow(Icons.color_lens, 'Color', veiculo.cor),
+                            _buildDetailRow(Icons.confirmation_number, 'Chassis Number', veiculo.numChassi.toString()),
+                            _buildDetailRow(Icons.people, 'Number of Seats', veiculo.numLugares.toString()),
+                            _buildDetailRow(Icons.engineering, 'Engine Number', veiculo.numMotor.toString()),
+                            _buildDetailRow(Icons.door_front_door_outlined, 'Number of Doors', veiculo.numPortas.toString()),
+                            _buildDetailRow(Icons.local_gas_station, 'Fuel Type', veiculo.tipoCombustivel),
+                            _buildDetailRow(Icons.info, 'Status', veiculo.state),
                           ],
                         ),
                       ),
-                      // Segunda aba: Informações Genéricas
-                      const SingleChildScrollView(
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Informações Adicionais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                              SizedBox(height: 8),
-                              Text('Manutenção Regular: Sim'),
-                              Text('Seguro Ativo: Não'),
-                              Text('Última Inspeção: 12/08/2024'),
-                              Text('Próxima Inspeção: 12/08/2025'),
-                              Text('Status: Operacional'),
-                            ],
-                          ),
+                      // "General Info" Tab
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Additional Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(Icons.build, 'Regular Maintenance', 'Yes'),
+                            _buildDetailRow(Icons.security, 'Active Insurance', 'No'),
+                            _buildDetailRow(Icons.calendar_today, 'Last Inspection', '12/08/2024'),
+                            _buildDetailRow(Icons.calendar_today, 'Next Inspection', '12/08/2025'),
+                            _buildDetailRow(Icons.check_circle, 'Status', 'Operational'),
+                          ],
                         ),
                       ),
-                      // Terceira aba: Imagens Adicionais
-                      const SingleChildScrollView(
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            // children: imagensAdicionais.isNotEmpty
-                            //     ? imagensAdicionais.map((image) => Padding(
-                            //           padding: const EdgeInsets.only(bottom: 8.0),
-                            //           child: Image.memory(
-                            //             base64Decode(image),
-                            //             fit: BoxFit.cover,
-                            //             height: 200,
-                            //             width: double.infinity,
-                            //           ),
-                            //         )).toList()
-                            //     : [const Center(child: Text('No Additional Images'))],
-                          ),
+                      // "Additional Images" Tab
+                      // "Additional Images" Tab
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Additional Images',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Exibir as imagens adicionais
+                            imagensAdicionais.isNotEmpty
+                                ? Column(
+                                    children: imagensAdicionais.map((veiculoImg) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 8.0),
+                                        child: Image.memory(
+                                          base64Decode(veiculoImg.imageBase64), // Usando imageBase64
+                                          fit: BoxFit.cover,
+                                          height: 200,
+                                          width: double.infinity,
+                                        ),
+                                      );
+                                    }).toList(),
+                                  )
+                                : const Center(child: Text('No additional images available.')),
+                          ],
                         ),
                       ),
                     ],
@@ -264,14 +340,53 @@ class _ManageConfirmedReservasPageState
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Fechar o diálogo
-            },
-            child: const Text('Close'),
-          ),
+              onPressed: () {
+                Navigator.of(context).pop(); // Fechar o diálogo
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.blue, // Fundo azul
+                foregroundColor: Colors.white, // Texto branco
+              ),
+              child: const Text('Close'),
+            ),
         ],
       );
     },
+  );
+}
+
+Widget _buildDetailRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.blue),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -286,7 +401,43 @@ void _showUserDetails(User user) {
           child: DefaultTabController(
             length: 2,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Cabeçalho com nome e imagem do usuário
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person, size: 40, color: Colors.blue),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${user.firstName} ${user.lastName}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            user.email,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Abas
                 const TabBar(
                   tabs: [
                     Tab(text: 'User Info'),
@@ -296,28 +447,39 @@ void _showUserDetails(User user) {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      // User Info Tab
+                      // Aba "User Info"
                       SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('ID: ${user.id}'),
-                            Text('First Name: ${user.firstName}'),
-                            Text('Last Name: ${user.lastName}'),
-                            Text('Email: ${user.email}'),
-                            Text('Phone Number1: ${user.phone1}'),
-                            Text('Phone Number2: ${user.phone2}'),
-                            Text('Address: ${user.address}'),
+                            // _buildDetailRow(Icons.person, 'ID', user.id),
+                            _buildDetailRow(Icons.person_outline, 'First Name', user.firstName),
+                            _buildDetailRow(Icons.person_outline, 'Last Name', user.lastName),
+                            _buildDetailRow(Icons.email, 'Email', user.email),
+                            _buildDetailRow(Icons.phone, 'Phone 1', user.phone1),
+                            _buildDetailRow(Icons.phone, 'Phone 2', user.phone2),
+                            _buildDetailRow(Icons.location_on, 'Address', user.address),
                           ],
                         ),
                       ),
-                      // General Info Tab
-                      const SingleChildScrollView(
+                      // Aba "General Info"
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('General information about the user or application goes here.'),
-                            Text('This could include additional notes or metadata.'),
+                            const Text(
+                              'Additional Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(Icons.history, 'Reservations', '5 completed'),
+                            _buildDetailRow(Icons.note, 'Notes', 'No additional notes.'),
+                            _buildDetailRow(Icons.star, 'Rating', '4.5/5'),
                           ],
                         ),
                       ),
@@ -453,35 +615,46 @@ String _addPadding(String base64String) {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(labelText: 'Destination'),
-                    onChanged: (value) {
-                      setState(() {
-                        _destinationFilter = value;
-                        _fetchReservas();
-                      });
-                    },
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(labelText: 'Destination'),
+                  onChanged: (value) {
+                    setState(() {
+                      _destinationFilter = value;
+                      _fetchReservas();
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _selectDate(context), // Abrir o DatePicker ao clicar
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Reservation Date',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedDate == null
+                              ? 'Select a date'
+                              : "${_selectedDate!.toLocal()}".split(' ')[0], // Exibir a data selecionada
+                        ),
+                        const Icon(Icons.calendar_today),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8.0),
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(labelText: 'State'),
-                    onChanged: (value) {
-                      setState(() {
-                        _stateFilter = value;
-                        _fetchReservas();
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
           Expanded(
             child: _reservas.isEmpty && !_isLoading
                 ? const Center(child: Text('No reservations found'))
@@ -526,6 +699,7 @@ String _addPadding(String base64String) {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Destination: ${reserva.destination}'),
+            Text('Date: ${reserva.date}'),
             Text('Number of Days: ${reserva.numberOfDays}'),
             Text('State: ${reserva.state}'),
             const SizedBox(height: 8.0),
@@ -544,7 +718,7 @@ String _addPadding(String base64String) {
                     onPressed: () async {
                       try {
                         UserService userService = UserService();
-                        User userDetails = await userService.getUserByName('${reserva.user.firstName} ${reserva.user.lastName}');
+                        User userDetails = await userService.getUserByName(reserva.clientId);
                         _showUserDetails(userDetails);
                       } catch (error) {
                         print('Error fetching user details: $error');
@@ -586,13 +760,35 @@ String _addPadding(String base64String) {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: () => _advanceProcess(reserva.id),
+            Tooltip(
+              message: 'Moving forward with the process', // Texto do tooltip
+              child: Material(
+                color: Colors.lightBlue, // Cor de fundo azul claro
+                shape: const CircleBorder(), // Formato circular
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
+                  onTap: () => _advanceProcess(reserva.id),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(Icons.add_circle_outline, color: Colors.white),
+                  ),
+                ),
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.undo),
-              onPressed: () => _uncheckReserva(reserva.id),
+            Tooltip(
+              message: 'Undo the process', // Texto do tooltip
+              child: Material(
+                color: Colors.redAccent, // Cor de fundo azul claro
+                shape: const CircleBorder(), // Formato circular
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
+                  onTap: () => _uncheckReserva(reserva.id),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(Icons.undo, color: Colors.white),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -604,8 +800,7 @@ String _addPadding(String base64String) {
 
 class VeiculoService {
   Future<Veiculo> getVeiculoByMatricula(String matricula) async {
-    final response = await http.get(Uri.parse('http://localhost:0/veiculo/matricula/$matricula'));
-
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/veiculo/matricula/$matricula'));
     if (response.statusCode == 200) {
       // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
       return Veiculo.fromJson(jsonDecode(response.body));
@@ -617,8 +812,8 @@ class VeiculoService {
 
 
 class UserService {
-  Future<User> getUserByName(String fullName) async {
-    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/user/$fullName'));
+  Future<User> getUserByName(int userId) async {
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/$userId'));
 
     if (response.statusCode == 200) {
       // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson

@@ -1,3 +1,4 @@
+import 'package:app/ui/pagamento/ManageReservationPaymentPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/constants.dart';
 import 'package:app/controllers/menu_app_controller.dart';
@@ -73,6 +74,7 @@ class MyApp extends StatelessWidget {
           '/confirmPayment': (context) => ManageConfirmPaymentPage(),
           '/atendimentoChart': (context) => AtendimentoChartPage(),
           '/reservationsAndService': (context) => ReservationsAndServiceChartPage(),
+          '/pagamentoreserva':(context) => ManageReservationPaymentPage(),
           '/geolocation': (context) => MapSelectionScreen(),
           '/settings': (context) => LoginPage(),
         },

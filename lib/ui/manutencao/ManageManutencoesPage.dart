@@ -238,73 +238,123 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
   TextEditingController obsController = TextEditingController();
 
   showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Advance Maintenance'),
-            content: SingleChildScrollView(
+  context: context,
+  builder: (context) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Advance Maintenance',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+          content: SizedBox(
+            width: 400, // Definir um tamanho fixo para melhor UX
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Vehicle ID: ${manutencao.veiculoID}'),
-                  Text('Service ID: ${manutencao.atendimentoID}'),
+                  Text(
+                    'Vehicle ID: ${manutencao.veiculoID}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Service ID: ${manutencao.atendimentoID}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Items for Replacement:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 200, // Definir altura fixa para evitar expansão excessiva
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListView.builder(
+                      itemCount: _itens.length,
+                      itemBuilder: (context, index) {
+                        final item = _itens[index];
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: index.isEven
+                                ? Colors.grey.shade200
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: CheckboxListTile(
+                            title: Text(item.description!),
+                            value: item.selected,
+                            onChanged: (value) {
+                              setState(() {
+                                item.selected = value ?? false;
+                              });
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Items for Replacement:'),
-                  ..._itens.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    return Container(
-                      color: index.isEven ? const Color.fromARGB(255, 10, 10, 10) : const Color.fromARGB(255, 110, 110, 110),
-                      child: CheckboxListTile(
-                        title: Text(item.description!),
-                        value: item.selected,
-                        onChanged: (value) {
-                          setState(() {
-                            item.selected = value ?? false;
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
-                  const SizedBox(height: 16),
-                  const Text('Observations:'),
+                  const Text(
+                    'Observations:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: obsController,
-                    maxLines: 3, // Permite múltiplas linhas
-                    decoration: const InputDecoration(
+                    maxLines: 3,
+                    decoration: InputDecoration(
                       hintText: 'Enter observations...',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Cancel'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
               ),
-              TextButton(
-                onPressed: () async {
-                  List<VehicleSupply> itensSelecionados =
-                      _itens.where((item) => item.selected).toList();
-                  String observacoes = obsController.text.trim(); // Obtém as observações
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                List<VehicleSupply> itensSelecionados =
+                    _itens.where((item) => item.selected).toList();
+                String observacoes = obsController.text.trim();
 
-                  await _saveItensManutencao(manutencao, itensSelecionados, observacoes);
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Save'),
+                await _saveItensManutencao(manutencao, itensSelecionados, observacoes);
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            ],
-          );
-        },
-      );
-    },
-  );
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  },
+);
+
 }
 
   Future<void> _saveItensManutencao(Manutencao manutencao, List<VehicleSupply> itensSelecionados, String observacoes) async {

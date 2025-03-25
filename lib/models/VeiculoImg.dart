@@ -15,14 +15,16 @@ class VeiculoImg {
   });
 
   // Método para converter JSON em objeto VeiculoImg
-  factory VeiculoImg.fromJson(Map<String, dynamic> json) {
-    return VeiculoImg(
-      veiculoId: json['veiculoId'],
-      imageBase64: json['image']['data'] != null
-          ? base64Encode(Uint8List.fromList(json['image']['data'].cast<int>()))
-          : '', // Convertendo Buffer para Base64
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
-    );
-  }
+factory VeiculoImg.fromJson(Map<String, dynamic> json) {
+  return VeiculoImg(
+    veiculoId: json['veiculoId'],
+    imageBase64: json['image'] is Map
+        ? (json['image']['data'] != null
+            ? base64Encode(Uint8List.fromList(json['image']['data'].cast<int>()))
+            : '')
+        : json['image'] ?? '', // Se 'image' for uma string Base64
+    createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
+    updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+  );
+}
 }

@@ -217,10 +217,19 @@ class _EditUserFormState extends State<EditUserForm> {
       actions: [
         ElevatedButton(
           onPressed: _saveUser,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
           child: const Text('Save'),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(
+            backgroundColor: Colors.grey[300],
+            foregroundColor: Colors.black87,
+          ),
           child: const Text('Cancel'),
         ),
       ],
@@ -229,7 +238,7 @@ class _EditUserFormState extends State<EditUserForm> {
 
   Widget _buildUserDataForm() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(16.0),
       child: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -239,121 +248,112 @@ class _EditUserFormState extends State<EditUserForm> {
               Center(
                 child: GestureDetector(
                   onTap: _pickImage,
-                  child: ClipOval(
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey[300],
-                      child: _imageBytes == null
-                          ? const Center(child: Text('Select Image'))
-                          : Image.memory(
-                              _imageBytes!,
-                              fit: BoxFit.cover,
-                            ),
-                    ),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Colors.grey[300],
+                    backgroundImage: _imageBytes != null
+                        ? MemoryImage(_imageBytes!)
+                        : null,
+                    child: _imageBytes == null
+                        ? const Icon(Icons.camera_alt, size: 40, color: Colors.grey)
+                        : null,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a username';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(labelText: 'First Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a first name';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(labelText: 'Last Name'),
-              ),
               const SizedBox(height: 20),
-              const Text("Gender", style: TextStyle(fontSize: 16)),
+              _buildStyledTextField(
+                controller: _usernameController,
+                labelText: 'Username',
+                icon: Icons.person,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _firstNameController,
+                labelText: 'First Name',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 16),
+              _buildStyledTextField(
+                controller: _lastNameController,
+                labelText: 'Last Name',
+                icon: Icons.person_outline,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Gender",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
               Row(
-                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Radio<String>(
-                    value: 'M',
-                    groupValue: _gender,
-                    onChanged: (value) {
-                      setState(() {
-                        _gender = value!;
-                      });
-                    },
-                  ),
-                  const Text("Male"),
-                  Radio<String>(
-                    value: 'F',
-                    groupValue: _gender,
-                    onChanged: (value) {
-                      setState(() {
-                        _gender = value!;
-                      });
-                    },
-                  ),
-                  const Text("Female"),
+                  _buildGenderRadio('M', 'Male'),
+                  const SizedBox(width: 20),
+                  _buildGenderRadio('F', 'Female'),
                 ],
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _birthdateController,
+                labelText: 'Birthdate',
+                icon: Icons.calendar_today,
                 readOnly: true,
                 onTap: _pickBirthdate,
-                decoration: const InputDecoration(labelText: 'Birthdate'),
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                labelText: 'Email',
+                icon: Icons.email,
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Address'),
+                labelText: 'Address',
+                icon: Icons.location_on,
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _neighborhoodController,
-                decoration: const InputDecoration(labelText: 'Neighborhood'),
+                labelText: 'Neighborhood',
+                icon: Icons.location_city,
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _phone1Controller,
-                decoration: const InputDecoration(labelText: 'Phone 1'),
+                labelText: 'Phone 1',
+                icon: Icons.phone,
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _phone2Controller,
-                decoration: const InputDecoration(labelText: 'Phone 2'),
+                labelText: 'Phone 2',
+                icon: Icons.phone,
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
+                labelText: 'Password',
+                icon: Icons.lock,
                 obscureText: true,
               ),
-              TextFormField(
+              const SizedBox(height: 16),
+              _buildStyledTextField(
                 controller: _confirmPasswordController,
-                decoration: const InputDecoration(labelText: 'Confirm Password'),
+                labelText: 'Confirm Password',
+                icon: Icons.lock,
                 obscureText: true,
               ),
-              DropdownButtonFormField<String>(
+              const SizedBox(height: 16),
+              _buildStyledDropdown(
                 value: _state,
-                items: ['active', 'inactive']
-                    .map((state) =>
-                        DropdownMenuItem(value: state, child: Text(state)))
-                    .toList(),
+                items: ['active', 'inactive'],
+                labelText: 'State',
+                icon: Icons.flag,
                 onChanged: (value) {
                   setState(() {
                     _state = value!;
                   });
                 },
-                decoration: const InputDecoration(labelText: 'State'),
               ),
             ],
           ),
@@ -362,24 +362,97 @@ class _EditUserFormState extends State<EditUserForm> {
     );
   }
 
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    bool readOnly = false,
+    bool obscureText = false,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.black87),
+          prefixIcon: Icon(icon, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        style: const TextStyle(color: Colors.black87), // Cor do texto digitado
+        readOnly: readOnly,
+        obscureText: obscureText,
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _buildStyledDropdown({
+    required String value,
+    required List<String> items,
+    required String labelText,
+    required IconData icon,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items
+            .map((item) => DropdownMenuItem(value: item, child: Text(item, style: const TextStyle(color: Colors.black87))))
+            .toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.black87),
+          prefixIcon: Icon(icon, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        style: const TextStyle(color: Colors.black87), // Cor do texto selecionado
+      ),
+    );
+  }
+
+  Widget _buildGenderRadio(String value, String label) {
+    return Row(
+      children: [
+        Radio<String>(
+          value: value,
+          groupValue: _gender,
+          onChanged: (value) {
+            setState(() {
+              _gender = value!;
+            });
+          },
+        ),
+        Text(label, style: const TextStyle(color: Colors.black87)),
+      ],
+    );
+  }
+
   Widget _buildRolesList() {
     if (_loadingRoles) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    print('Roles para renderizar: ${roles.length}'); // Log para depuração
-
     return ListView.builder(
       itemCount: roles.length,
       itemBuilder: (context, index) {
-        final Color tileColor = index % 2 == 0
-            ? const Color.fromARGB(255, 14, 13, 13) // Cor clara para linhas pares
-            : const Color.fromARGB(255, 53, 51, 51); // Cor branca para linhas ímpares
-
-        return Container(
-          color: tileColor,
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: CheckboxListTile(
-            title: Text(roles[index].name ?? 'Role ${index + 1}'),
+            title: Text(roles[index].name ?? 'Role ${index + 1}', style: const TextStyle(color: Colors.black87)),
             value: roles[index].selected ?? false,
             onChanged: (bool? newValue) {
               setState(() {

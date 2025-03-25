@@ -1,3 +1,4 @@
+import 'package:app/models/VeiculoDetails.dart';
 import 'package:app/models/Veiculoimg.dart';
 
 class Veiculo {
@@ -15,7 +16,8 @@ class Veiculo {
   final String state;
   final String imagemBase64;
   final bool rentalIncludesDriver;
-  final List<VeiculoImg> imagensAdicionais; // Lista de imagens adicionais
+  final List<VeiculoImg> imagensAdicionais;
+  final List<VeiculoDetails> details; // Adicionando a lista de detalhes
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -34,7 +36,8 @@ class Veiculo {
     required this.state,
     required this.imagemBase64,
     required this.rentalIncludesDriver,
-    required this.imagensAdicionais, // Incluindo a lista de imagens adicionais
+    required this.imagensAdicionais,
+    required this.details, // Incluindo os detalhes na inicialização
     required this.createdAt,
     required this.updatedAt,
   });
@@ -58,7 +61,11 @@ class Veiculo {
       imagensAdicionais: (json['imagensAdicionais'] as List<dynamic>?)
               ?.map((img) => VeiculoImg.fromJson(img))
               .toList() ??
-          [], // Convertendo a lista de imagens adicionais
+          [],
+      details: (json['details'] as List<dynamic>?)
+              ?.map((detail) => VeiculoDetails.fromJson(detail))
+              .toList() ??
+          [],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );

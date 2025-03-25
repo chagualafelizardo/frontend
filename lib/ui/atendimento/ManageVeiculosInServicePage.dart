@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:app/models/Reserva.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Atendimento.dart';
 import 'package:app/services/AtendimentoService.dart';
@@ -56,14 +59,14 @@ class _ManageAtendimentosPageState extends State<ManageAtendimentosPage> {
   }
 
   Future<void> _deleteAtendimento(int atendimentoId) async {
-    // try {
-    //   await _atendimentoService.deleteAtendimento(atendimentoId);
-    //   setState(() {
-    //     _atendimentos.removeWhere((atendimento) => atendimento.id == atendimentoId);
-    //   });
-    // } catch (e) {
-    //   print('Error deleting atendimento: $e');
-    // }
+    try {
+      await _atendimentoService.deleteAtendimento(atendimentoId);
+      setState(() {
+        _atendimentos.removeWhere((atendimento) => atendimento.id == atendimentoId);
+      });
+    } catch (e) {
+      print('Error deleting atendimento: $e');
+    }
   }
 
   @override
@@ -145,5 +148,32 @@ class _ManageAtendimentosPageState extends State<ManageAtendimentosPage> {
               },
             ),
     );
+  }
+}
+
+
+class VeiculoService {
+  Future<Veiculo> getVeiculoByMatricula(String matricula) async {
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/veiculo/matricula/$matricula'));
+    if (response.statusCode == 200) {
+      // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
+      return Veiculo.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load vehicle');
+    }
+  }
+}
+
+
+class UserService {
+  Future<User> getUserByName(int userId) async {
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/$userId'));
+
+    if (response.statusCode == 200) {
+      // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
+      return User.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load vehicle');
+    }
   }
 }

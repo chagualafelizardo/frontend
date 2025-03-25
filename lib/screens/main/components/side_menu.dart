@@ -131,6 +131,13 @@ class SideMenu extends StatelessWidget {
             children: [
               ListTile(
                 leading: Icon(Icons.list),
+                title: Text("Reservation Payment"),
+                onTap: () => onMenuSelected('/pagamentoreserva'),
+              ),
+              Divider(), // Separador entre os itens
+
+              ListTile(
+                leading: Icon(Icons.list),
                 title: Text("Create Payment"),
                 onTap: () => onMenuSelected('/createPayment'),
               ),

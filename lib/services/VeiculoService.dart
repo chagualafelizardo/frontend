@@ -38,4 +38,5 @@ class VeiculoService {
       throw Exception('Failed to load vehicles');
     }
   }
+
 }

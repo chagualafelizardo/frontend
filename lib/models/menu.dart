@@ -19,7 +19,7 @@ class Menus {
 List options = [
   Menus(
     title: "Requests",
-    numOfFiles: 1328,
+    numOfFiles: 0,
     svgSrc: "assets/icons/Documents.svg",
     color: primaryColor,
     percentage: 35,
@@ -27,7 +27,7 @@ List options = [
   ),
   Menus(
     title: "Confirmed Reservations",
-    numOfFiles: 1328,
+    numOfFiles: 0,
     svgSrc: "assets/icons/google_drive.svg",
     color: Color(0xFFFFA113),
     percentage: 35,
@@ -35,7 +35,7 @@ List options = [
   ),
   Menus(
     title: "Allocations",
-    numOfFiles: 1328,
+    numOfFiles: 0,
     svgSrc: "assets/icons/one_drive.svg",
     color: Color(0xFFA4CDFF),
     percentage: 10,
@@ -43,7 +43,7 @@ List options = [
   ),
   Menus(
     title: "Finance",
-    numOfFiles: 5328,
+    numOfFiles: 0,
     svgSrc: "assets/icons/drop_box.svg",
     color: Color(0xFF007EE5),
     percentage: 78,

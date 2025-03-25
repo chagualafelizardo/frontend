@@ -1,20 +1,45 @@
+import 'package:flutter/material.dart';
 import 'package:app/controllers/menu_app_controller.dart';
 import 'package:app/responsive.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import 'package:app/constants.dart';
+import 'package:app/ui/veiculo/VeiculoGrid.dart'; // Importe o VeiculoGrid
 
-import '../../../constants.dart';
+class HomePage extends StatelessWidget {
+  final String userName;
+
+  const HomePage({
+    Key? key,
+    required this.userName,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          // Header existente
+          Header(userName: userName),
+          // Espaçamento
+          const SizedBox(height: 16),
+          // Lista de veículos
+          Expanded(
+            child: VeiculoGrid(), // Adicione o VeiculoGrid aqui
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class Header extends StatelessWidget {
-
   final String userName;
 
   const Header({
     Key? key,
     required this.userName,
   }) : super(key: key);
-
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +112,6 @@ class ProfileCard extends StatelessWidget {
               }
             },
             itemBuilder: (BuildContext context) => [
-              
               PopupMenuItem<String>(
                 value: 'user_details',
                 child: Text('User Details'),

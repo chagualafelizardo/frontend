@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:app/models/VeiculoDetails.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/VeiculoAdd.dart';
 
@@ -92,6 +93,37 @@ class VeiculoServiceAdd {
     } catch (e) {
       print('Error fetching vehicles for maintenance: $e');
       throw Exception('Error fetching vehicles for maintenance');
+    }
+  }
+
+  Future<void> addVeiculoDetail(VeiculoDetails detail) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/veiculodetails'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(detail.toJson()),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to add vehicle detail');
+    }
+  }
+
+  Future<List<VeiculoDetails>> fetchDetailsByVehicleId(int veiculoId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/veiculo/$veiculoId/details'),
+    );
+
+    if (response.statusCode == 200) {
+      // Decodifica o JSON retornado
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      // Extrai a lista de detalhes do objeto JSON
+      final List<dynamic> detailsJson = data['details'];
+
+      // Converte a lista de JSON em uma lista de VeiculoDetails
+      return detailsJson.map((detail) => VeiculoDetails.fromJson(detail)).toList();
+    } else {
+      throw Exception('Failed to load vehicle details');
     }
   }
 }

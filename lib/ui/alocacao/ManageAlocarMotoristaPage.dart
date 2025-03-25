@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'package:app/models/AtendimentoDocument.dart';
+import 'package:app/models/AtendimentoItem.dart';
 import 'package:app/services/UserServiceBase64.dart';
+import 'package:app/ui/alocacao/AtendimentoDetailsPopup.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Allocation.dart';
@@ -267,6 +270,30 @@ void _filterAtendimentos() {
       },
     );
   }
+
+Future<void> showAtendimentoDetailsPopup(BuildContext context, int atendimentoId) async {
+  try {
+    final AtendimentoService atendimentoService = AtendimentoService(dotenv.env['BASE_URL']!);
+    final Map<String, dynamic> details = await atendimentoService.fetchAtendimentoDetails(atendimentoId);
+
+    final List<AtendimentoItem> items = details['items'];
+    final List<AtendimentoDocument> documents = details['documents'];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AtendimentoDetailsPopup(
+          items: items,
+          documents: documents,
+        );
+      },
+    );
+  } catch (error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to load atendimento details: $error')),
+    );
+  }
+}
 
 void _showDriverDetailsDialog(int atendimentoId) async {
   try {
@@ -878,17 +905,19 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
               IconButton(
                 icon: const Icon(Icons.person_2, color: Color.fromARGB(255, 45, 116, 163)),
                 onPressed: () {
-                  // _showDriverDetails(atendimento.motoristaAlocado);
+                  _atendimentoService.fetchReserveIdAndUserDetails(atendimento.reservaId!);
+
                 },
                 tooltip: 'Ver Motorista Alocado',
               ),
               // Botão para ver os detalhes dos itens
               IconButton(
                 icon: const Icon(Icons.list, color: Colors.teal),
-                onPressed: () {
+                onPressed: () async {
                   // _showItemDetails(atendimento.itens);
+                  await showAtendimentoDetailsPopup(context, atendimento.id!);
                 },
-                tooltip: 'Ver Detalhes dos Itens',
+                tooltip: 'View Itens Details',
               ),
             ],
           ),
@@ -1061,4 +1090,30 @@ Widget _buildDetailRow(IconData icon, String label, String value) {
     ),
   );
 }
+}
+
+
+class VeiculoService {
+  Future<Veiculo> getVeiculoByMatricula(String matricula) async {
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/veiculo/matricula/$matricula'));
+    if (response.statusCode == 200) {
+      // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
+      return Veiculo.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load vehicle');
+    }
+  }
+}
+
+class UserServiceDetails {
+  Future<User> getUserByName(int userId) async {
+    final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/$userId'));
+
+    if (response.statusCode == 200) {
+      // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
+      return User.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load vehicle');
+    }
+  }
 }

@@ -18,14 +18,15 @@ import 'package:app/services/VeiculoAddService.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Atendimento.dart';
 import 'package:app/services/AtendimentoService.dart';
-import 'package:app/models/EnviaManutencao.dart'; // Importe o modelo Manutencao
+import 'package:app/models/EnviaManutencao.dart';
 import 'package:app/services/EnviaManutencaoService.dart';
-import 'package:intl/intl.dart'; // Importe o serviço ManutencaoService
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Atendimento.dart';
 import 'package:app/services/AtendimentoService.dart';
 import 'package:app/models/Pagamento.dart';
 import 'package:app/services/PagamentoService.dart';
+import 'package:path/path.dart';
 
 class ManageConfirmPaymentPage extends StatefulWidget {
   const ManageConfirmPaymentPage({super.key});
@@ -40,7 +41,7 @@ class _ManagePaymentPageState extends State<ManageConfirmPaymentPage> with Singl
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this); // Apenas uma aba
+    _tabController = TabController(length: 1, vsync: this);
   }
 
   @override
@@ -52,21 +53,21 @@ class _ManagePaymentPageState extends State<ManageConfirmPaymentPage> with Singl
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 1, // Apenas uma aba
+      length: 1,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Manage Payment'),
+          title: const Text('Payment Management'),
           bottom: TabBar(
             controller: _tabController,
             tabs: const [
-              Tab(text: 'Payment'), // Apenas a segunda aba
+              Tab(text: 'Payments'),
             ],
           ),
         ),
         body: TabBarView(
           controller: _tabController,
           children: [
-            PagamentosTab(), // Apenas a segunda aba
+            PaymentsTab(),
           ],
         ),
       ),
@@ -74,67 +75,63 @@ class _ManagePaymentPageState extends State<ManageConfirmPaymentPage> with Singl
   }
 }
 
-class PagamentosTab extends StatelessWidget {
-  final PagamentoService pagamentoService = PagamentoService(dotenv.env['BASE_URL']!);
+class PaymentsTab extends StatelessWidget {
+  final PagamentoService paymentService = PagamentoService(dotenv.env['BASE_URL']!);
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<PagamentoList>>(
-      future: pagamentoService.fetchPagamentos(),
+      future: paymentService.fetchPagamentos(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('Error loading payments: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No pagamentos available.'));
+          return const Center(child: Text('No payments available'));
         }
 
-        final pagamentosList = snapshot.data!;
+        final paymentsList = snapshot.data!;
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
             columnSpacing: 16.0,
             columns: const [
               DataColumn(label: Text('ID')),
-              DataColumn(label: Text('Valor Total')),
-              DataColumn(label: Text('Data')),
-              DataColumn(label: Text('Atendimento ID')),
+              DataColumn(label: Text('Total Amount')),
+              DataColumn(label: Text('Date')),
+              DataColumn(label: Text('Service ID')),
               DataColumn(label: Text('User ID')),
-              DataColumn(label: Text('Critério Pagamento ID')),
+              DataColumn(label: Text('Payment Criteria ID')),
               DataColumn(label: Text('Actions')),
             ],
-            rows: pagamentosList.asMap().entries.map((entry) {
-              final index = entry.key; // Índice da linha
-              final pagamento = entry.value; // Dados do pagamento
+            rows: paymentsList.asMap().entries.map((entry) {
+              final index = entry.key;
+              final payment = entry.value;
 
-              // Define as cores alternadas
               final color = index % 2 == 0
                   ? const Color.fromARGB(255, 5, 5, 5)
                   : const Color.fromARGB(255, 83, 83, 83);
 
               return DataRow(
                 color: MaterialStateProperty.resolveWith<Color>(
-                  (Set<MaterialState> states) {
-                    return color; // Aplica a cor de fundo
-                  },
+                  (Set<MaterialState> states) => color,
                 ),
                 cells: [
-                  DataCell(Text(pagamento.id.toString())),
-                  DataCell(Text(pagamento.valorTotal.toString())),
-                  DataCell(Text(pagamento.data.toString())),
-                  DataCell(Text(pagamento.atendimentoId.toString())),
-                  DataCell(Text(pagamento.userId.toString())),
-                  DataCell(Text(pagamento.criterioPagamentoId.toString())),
+                  DataCell(Text(payment.id.toString())),
+                  DataCell(Text('\$${payment.valorTotal.toStringAsFixed(2)}')),
+                  DataCell(Text(DateFormat('MM/dd/yyyy').format(payment.data))),
+                  DataCell(Text(payment.atendimentoId.toString())),
+                  DataCell(Text(payment.userId.toString())),
+                  DataCell(Text(payment.criterioPagamentoId.toString())),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.check),
-                          onPressed: () {
-                            _confirmarAutorizacaoPagamento(context);
-                          },
+                          icon: const Icon(Icons.check, color: Colors.green),
+                          onPressed: () => _confirmPaymentAuthorization(context),
+                          tooltip: 'Authorize Payment',
                         ),
                       ],
                     ),
@@ -147,83 +144,79 @@ class PagamentosTab extends StatelessWidget {
       },
     );
   }
+
+  void _confirmPaymentAuthorization(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Payment Authorization'),
+          content: const Text('Are you sure you want to authorize this payment?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _authorizePayment();
+              },
+              child: const Text('Authorize'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _authorizePayment() {
+    // Payment authorization logic
+    ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+      const SnackBar(content: Text('Payment successfully authorized')),
+    );
+  }
 }
 
-void _confirmarAutorizacaoPagamento(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Confirm Authorization'),
-        content: const Text('Do you want to authorize this payment?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Fecha o popup sem autorizar
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Fecha o popup
-              _autorizarPagamento(); // Chama a função para autorizar
-            },
-            child: const Text('Authorize'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-void _autorizarPagamento() {
-  // Lógica para autorizar o pagamento
-  print('Payment authorized!');
-}
-
-class DetalhesPagamento extends StatelessWidget {
-  final DetalhePagamentoService pagamentoDetalhesService = DetalhePagamentoService(dotenv.env['BASE_URL']!);
+class PaymentDetails extends StatelessWidget {
+  final DetalhePagamentoService paymentDetailsService = DetalhePagamentoService(dotenv.env['BASE_URL']!);
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2, // Número de abas
+      length: 2,
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9, // 90% da largura da tela
-        height: MediaQuery.of(context).size.height * 0.6, // 60% da altura da tela
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.6,
         child: Column(
           children: [
-            // Barra de abas
             const TabBar(
               tabs: [
-                Tab(text: 'Informações Gerais'), // Primeira aba
-                Tab(text: 'Detalhes de Pagamento'), // Segunda aba
+                Tab(text: 'General Information'),
+                Tab(text: 'Payment Details'),
               ],
             ),
-            // Conteúdo das abas
             Expanded(
               child: TabBarView(
                 children: [
-                  // Conteúdo da primeira aba (Informações Gerais)
                   const Center(
                     child: Text(
-                      'Aqui você pode adicionar informações gerais sobre o pagamento.',
+                      'General payment information will be displayed here',
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
-                  // Conteúdo da segunda aba (Detalhes de Pagamento)
                   FutureBuilder<List<DetalhePagamento>>(
-                    future: pagamentoDetalhesService.fetchDetalhesPagamento(),
+                    future: paymentDetailsService.fetchDetalhesPagamento(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       } else if (snapshot.hasError) {
-                        return Center(child: Text('Error: ${snapshot.error}'));
+                        return Center(child: Text('Error loading details: ${snapshot.error}'));
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(child: Text('No detalhes pagamento available.'));
+                        return const Center(child: Text('No payment details available'));
                       }
 
-                      final detalhesList = snapshot.data!;
+                      final detailsList = snapshot.data!;
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: SingleChildScrollView(
@@ -232,30 +225,27 @@ class DetalhesPagamento extends StatelessWidget {
                             columnSpacing: 16.0,
                             columns: const [
                               DataColumn(label: Text('ID')),
-                              DataColumn(label: Text('Valor Pagamento')),
-                              DataColumn(label: Text('Data Pagamento')),
-                              DataColumn(label: Text('Pagamento ID')),
+                              DataColumn(label: Text('Amount')),
+                              DataColumn(label: Text('Payment Date')),
+                              DataColumn(label: Text('Payment ID')),
                             ],
-                            rows: detalhesList.asMap().entries.map((entry) {
-                              final index = entry.key; // Índice da linha
-                              final detalhe = entry.value; // Dados do detalhe de pagamento
+                            rows: detailsList.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final detail = entry.value;
 
-                              // Define as cores alternadas
                               final color = index % 2 == 0
-                                  ? const Color.fromARGB(255, 5, 5, 5) // Cor para linhas pares
-                                  : const Color.fromARGB(255, 83, 83, 83); // Cor para linhas ímpares
+                                  ? const Color.fromARGB(255, 5, 5, 5)
+                                  : const Color.fromARGB(255, 83, 83, 83);
 
                               return DataRow(
                                 color: MaterialStateProperty.resolveWith<Color>(
-                                  (Set<MaterialState> states) {
-                                    return color; // Aplica a cor de fundo
-                                  },
+                                  (Set<MaterialState> states) => color,
                                 ),
                                 cells: [
-                                  DataCell(Text(detalhe.id.toString())),
-                                  DataCell(Text(detalhe.valorPagamento.toString())),
-                                  DataCell(Text(detalhe.dataPagamento.toString())),
-                                  DataCell(Text(detalhe.pagamentoId.toString())),
+                                  DataCell(Text(detail.id.toString())),
+                                  DataCell(Text('\$${detail.valorPagamento.toStringAsFixed(2)}')),
+                                  DataCell(Text(DateFormat('MM/dd/yyyy').format(detail.dataPagamento))),
+                                  DataCell(Text(detail.pagamentoId.toString())),
                                 ],
                               );
                             }).toList(),

@@ -71,7 +71,7 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
     });
   }
 
-  void _openAddVeiculoDialog() {
+    void _openAddVeiculoDialog() {
     showDialog(
       context: context,
       builder: (context) {

@@ -75,7 +75,7 @@ class _StorageDetailsState extends State<StorageDetails> {
           SizedBox(height: defaultPadding),
           _buildStorageCard(context, svgSrc: "assets/icons/Documents.svg", title: "Request", route: "/request"),
           _buildStorageCard(context, svgSrc: "assets/icons/Documents.svg", title: "Confirmed Request", route: "/confirmedRequest"),
-          _buildStorageCard(context, svgSrc: "assets/icons/Documents.svg", title: "Allocations", route: "/allocations"),
+          _buildStorageCard(context, svgSrc: "assets/icons/Documents.svg", title: "Service | Allocations", route: "/allocations"),
           SizedBox(height: defaultPadding),
           _isLoading
               ? Center(child: CircularProgressIndicator())

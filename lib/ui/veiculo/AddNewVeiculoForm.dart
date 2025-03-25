@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:app/models/VeiculoDetails.dart';
 import 'package:app/services/VeiculoImgService.dart';
 import 'package:app/ui/veiculo/ImagePreviewPage.dart';
 import 'package:flutter/material.dart';
@@ -9,13 +11,12 @@ import 'package:app/services/VeiculoAddService.dart';
 import 'package:app/models/VeiculoAdd.dart';
 
 class AddNewVeiculoForm extends StatefulWidget {
-  final VeiculoServiceAdd veiculoServiceAdd;
+  final VeiculoServiceAdd veiculoServiceAdd = VeiculoServiceAdd(dotenv.env['BASE_URL']!); // Inicialização direta
   final Function onVeiculoAdded;
 
-  const AddNewVeiculoForm({
+  AddNewVeiculoForm({
     Key? key,
-    required this.veiculoServiceAdd,
-    required this.onVeiculoAdded,
+    required this.onVeiculoAdded, required VeiculoServiceAdd veiculoServiceAdd, // Remova o parâmetro veiculoServiceAdd
   }) : super(key: key);
 
   @override
@@ -34,19 +35,25 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
   final TextEditingController _numMotorController = TextEditingController();
   final TextEditingController _numPortasController = TextEditingController();
 
+  // Para detalhes do veiculo
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _startDateController = TextEditingController();
+  final TextEditingController _endDateController = TextEditingController();
+  final TextEditingController _obsController = TextEditingController();
+
   String _selectedState = 'Free';
   String _selectedCombustivel = 'GASOLINA';
   Uint8List? _imageBytes;
   bool _rentalIncludesDriver = false;
 
   final List<Uint8List> _additionalImages = [];
-
   late TabController _tabController;
+  final List<VeiculoDetails> _veiculoDetails = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   Future<void> _pickImage() async {
@@ -75,109 +82,209 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
     });
   }
 
-void _saveVeiculo() async {
-  print('Saving vehicle...');
+  void _saveVeiculo() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final veiculo = VeiculoAdd(
+        id: 0,
+        matricula: _matriculaController.text,
+        marca: _marcaController.text,
+        modelo: _modeloController.text,
+        ano: int.parse(_anoController.text),
+        cor: _corController.text,
+        numChassi: _numChassiController.text,
+        numLugares: int.parse(_numLugaresController.text),
+        numMotor: _numMotorController.text,
+        numPortas: int.parse(_numPortasController.text),
+        tipoCombustivel: _selectedCombustivel,
+        state: _selectedState,
+        imagemBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
+        rentalIncludesDriver: _rentalIncludesDriver,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-  if (_formKey.currentState?.validate() ?? false) {
-    final veiculo = VeiculoAdd(
-      id: 0,
-      matricula: _matriculaController.text,
-      marca: _marcaController.text,
-      modelo: _modeloController.text,
-      ano: int.parse(_anoController.text),
-      cor: _corController.text,
-      numChassi: _numChassiController.text,
-      numLugares: int.parse(_numLugaresController.text),
-      numMotor: _numMotorController.text,
-      numPortas: int.parse(_numPortasController.text),
-      tipoCombustivel: _selectedCombustivel,
-      state: _selectedState,
-      imagemBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
-      rentalIncludesDriver: _rentalIncludesDriver,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+      try {
+        // Salvar o veículo
+        await widget.veiculoServiceAdd.createVeiculo(veiculo);
+        final veiculoSalvo = await widget.veiculoServiceAdd.getVeiculoByMatricula(_matriculaController.text);
 
-    print('Vehicle data prepared: ${veiculo.toJson()}');
+        if (veiculoSalvo == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to retrieve the saved vehicle')),
+          );
+          return;
+        }
 
-    if (_imageBytes != null) {
-      print("Image bytes size: ${_imageBytes!.length} bytes");
-    }
+        // Salvar as imagens adicionais
+        if (_additionalImages.isNotEmpty) {
+          await _uploadAdditionalImages(veiculoSalvo.id);
+        }
+        // Salvar os detalhes do veículo
+        if (_veiculoDetails.isNotEmpty) {
+          for (var detail in _veiculoDetails) {
+            await widget.veiculoServiceAdd.addVeiculoDetail(
+              VeiculoDetails(
+                description: detail.description,
+                startDate: detail.startDate,
+                endDate: detail.endDate,
+                obs: detail.obs,
+                veiculoId: veiculoSalvo.id,
+              ),
+            );
+          }
+        }
 
-    try {
-      // Criação do veículo
-      await widget.veiculoServiceAdd.createVeiculo(veiculo);
-      print('Vehicle saved successfully.');
-
-      // Obter o veículo salvo
-      final veiculoSalvo = await widget.veiculoServiceAdd.getVeiculoByMatricula(_matriculaController.text);
-
-      if (veiculoSalvo == null) {
-        print('Failed to retrieve the saved vehicle: No vehicle found.');
+        widget.onVeiculoAdded();
+        Navigator.of(context).pop();
+      } catch (error) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to retrieve the saved vehicle')),
+          SnackBar(content: Text('Failed to add vehicle: $error')),
         );
-        return;
       }
-
-      print('Retrieved vehicle ID: ${veiculoSalvo.id}');
-      
-      // Fazer upload das imagens adicionais
-      if (_additionalImages.isNotEmpty) {
-        await _uploadAdditionalImages(veiculoSalvo.id); // Envia imagens adicionais
-      }
-      
-      // Finalizar e voltar
-      widget.onVeiculoAdded();
-      Navigator.of(context).pop();
-
-    } catch (error) {
-      print('Error during vehicle saving process: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to add vehicle: $error')),
-      );
-    }
-  } else {
-    print('Form validation failed.');
-  }
-}
-
-Future<void> _uploadAdditionalImages(int veiculoId) async {
-  final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
-  print('Uploading additional images for vehicle ID: $veiculoId');
-
-  if (_additionalImages.isEmpty) {
-    print('No additional images to upload.');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No images to upload')),
-    );
-    return;
-  }
-
-  for (var image in _additionalImages) {
-    print("Preparing to upload image, size: ${image.length} bytes");
-    try {
-      await veiculoImgService.addImageToVehicle(veiculoId, image);
-      print('Image uploaded successfully for vehicle ID: $veiculoId');
-    } catch (error) {
-      print('Failed to upload additional image for vehicle ID $veiculoId: $error');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload an image: $error')),
-      );
     }
   }
 
-  print('Image upload process completed.');
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Image upload process completed')),
+  Future<void> _uploadAdditionalImages(int veiculoId) async {
+    final VeiculoImgService veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
+
+    for (var image in _additionalImages) {
+      try {
+        await veiculoImgService.addImageToVehicle(veiculoId, image);
+      } catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload an image: $error')),
+        );
+      }
+    }
+  }
+
+  void _addDetail() {
+    final description = _descriptionController.text;
+    final startDate = DateTime.parse(_startDateController.text);
+    final endDate = DateTime.parse(_endDateController.text);
+    final obs = _obsController.text;
+
+    if (description.isNotEmpty && startDate.isBefore(endDate)) {
+      setState(() {
+        _veiculoDetails.add(
+          VeiculoDetails(
+            description: description,
+            startDate: startDate,
+            endDate: endDate,
+            obs: obs.isNotEmpty ? obs : null,
+            veiculoId: 0, // Será atualizado após salvar o veículo
+          ),
+        );
+      });
+
+      // Limpar os campos do formulário
+      _descriptionController.clear();
+      _startDateController.clear();
+      _endDateController.clear();
+      _obsController.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields correctly')),
+      );
+    }
+  }
+
+  void _removeDetail(VeiculoDetails detail) {
+    setState(() {
+      _veiculoDetails.remove(detail);
+    });
+  }
+
+ Widget _buildDetailsForm() {
+  return Row(
+    children: [
+      // Campo Description
+      Expanded(
+        flex: 2, // Proporção de espaço ocupado
+        child: TextFormField(
+          controller: _descriptionController,
+          decoration: const InputDecoration(
+            labelText: 'Description',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ),
+      const SizedBox(width: 10), // Espaçamento entre os campos
+      // Campo Start Date (com calendário)
+      Expanded(
+        flex: 1,
+        child: TextFormField(
+          controller: _startDateController,
+          decoration: const InputDecoration(
+            labelText: 'Start Date',
+            border: OutlineInputBorder(),
+          ),
+          onTap: () async {
+            final DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (pickedDate != null) {
+              setState(() {
+                _startDateController.text = "${pickedDate.toLocal()}".split(' ')[0];
+              });
+            }
+          },
+        ),
+      ),
+      const SizedBox(width: 10),
+      // Campo End Date (com calendário)
+      Expanded(
+        flex: 1,
+        child: TextFormField(
+          controller: _endDateController,
+          decoration: const InputDecoration(
+            labelText: 'End Date',
+            border: OutlineInputBorder(),
+          ),
+          onTap: () async {
+            final DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (pickedDate != null) {
+              setState(() {
+                _endDateController.text = "${pickedDate.toLocal()}".split(' ')[0];
+              });
+            }
+          },
+        ),
+      ),
+      const SizedBox(width: 10),
+      // Campo Observations
+      Expanded(
+        flex: 2,
+        child: TextFormField(
+          controller: _obsController,
+          decoration: const InputDecoration(
+            labelText: 'Observations',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ),
+      const SizedBox(width: 10),
+      // Botão para adicionar detalhe
+      ElevatedButton(
+        onPressed: _addDetail,
+        child: const Text('Add Detail'),
+      ),
+    ],
   );
 }
-
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add New Vehicle'),
+      title: const Text('Add New Vehicle', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
       content: SizedBox(
         width: 800,
         height: 600,
@@ -185,9 +292,13 @@ Future<void> _uploadAdditionalImages(int veiculoId) async {
           children: [
             TabBar(
               controller: _tabController,
+              labelColor: Colors.blue,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.blue,
               tabs: const [
                 Tab(text: 'Vehicle Info'),
                 Tab(text: 'Other Vehicle Images'),
+                Tab(text: 'General Information'),
               ],
             ),
             Expanded(
@@ -204,11 +315,23 @@ Future<void> _uploadAdditionalImages(int veiculoId) async {
                             width: 500,
                             height: 600,
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey),
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.2),
+                                  spreadRadius: 2,
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
                             child: _imageBytes != null
-                                ? Image.memory(_imageBytes!)
-                                : const Center(child: Text('No Image')),
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                                  )
+                                : const Center(child: Icon(Icons.camera_alt, size: 40, color: Colors.grey)),
                           ),
                         ),
                         const SizedBox(width: 20),
@@ -219,91 +342,89 @@ Future<void> _uploadAdditionalImages(int veiculoId) async {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _matriculaController,
-                                    decoration: const InputDecoration(labelText: 'Matricula'),
+                                    labelText: 'Matricula',
+                                    icon: Icons.confirmation_number,
                                     validator: (value) => value == null || value.isEmpty ? 'Please enter matricula' : null,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _marcaController,
-                                    decoration: const InputDecoration(labelText: 'Marca'),
+                                    labelText: 'Marca',
+                                    icon: Icons.directions_car,
                                     validator: (value) => value == null || value.isEmpty ? 'Please enter marca' : null,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _modeloController,
-                                    decoration: const InputDecoration(labelText: 'Modelo'),
+                                    labelText: 'Modelo',
+                                    icon: Icons.model_training,
                                     validator: (value) => value == null || value.isEmpty ? 'Please enter modelo' : null,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _anoController,
-                                    decoration: const InputDecoration(labelText: 'Ano'),
+                                    labelText: 'Ano',
+                                    icon: Icons.calendar_today,
                                     keyboardType: TextInputType.number,
                                     validator: (value) => value == null || value.isEmpty ? 'Please enter ano' : null,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _corController,
-                                    decoration: const InputDecoration(labelText: 'Cor'),
+                                    labelText: 'Cor',
+                                    icon: Icons.color_lens,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _numChassiController,
-                                    decoration: const InputDecoration(labelText: 'Num Chassi'),
+                                    labelText: 'Num Chassi',
+                                    icon: Icons.confirmation_number,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _numLugaresController,
-                                    decoration: const InputDecoration(labelText: 'Num Lugares'),
+                                    labelText: 'Num Lugares',
+                                    icon: Icons.people,
                                     keyboardType: TextInputType.number,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _numMotorController,
-                                    decoration: const InputDecoration(labelText: 'Num Motor'),
+                                    labelText: 'Num Motor',
+                                    icon: Icons.engineering,
                                   ),
-                                  TextFormField(
+                                  _buildStyledTextField(
                                     controller: _numPortasController,
-                                    decoration: const InputDecoration(labelText: 'Num Portas'),
+                                    labelText: 'Num Portas',
+                                    icon: Icons.door_back_door,
                                     keyboardType: TextInputType.number,
                                   ),
-                                  DropdownButtonFormField<String>(
+                                  _buildStyledDropdown(
                                     value: _selectedCombustivel,
-                                    decoration: const InputDecoration(labelText: 'Tipo Combustível'),
-                                    items: <String>['GASOLINA', 'DIESEL', 'GASOLEO']
-                                        .map((String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
+                                    labelText: 'Tipo Combustível',
+                                    icon: Icons.local_gas_station,
+                                    items: ['GASOLINA', 'DIESEL', 'GASOLEO'],
+                                    onChanged: (value) {
                                       setState(() {
-                                        _selectedCombustivel = newValue!;
+                                        _selectedCombustivel = value!;
                                       });
                                     },
-                                    validator: (value) => value == null || value.isEmpty ? 'Please select a tipo combustivel' : null,
                                   ),
-                                  DropdownButtonFormField<String>(
+                                  _buildStyledDropdown(
                                     value: _selectedState,
-                                    decoration: const InputDecoration(labelText: 'State'),
-                                    items: <String>['Free', 'Occupied'].map((String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
+                                    labelText: 'State',
+                                    icon: Icons.flag,
+                                    items: ['Free', 'Occupied'],
+                                    onChanged: (value) {
                                       setState(() {
-                                        _selectedState = newValue!;
+                                        _selectedState = value!;
                                       });
                                     },
-                                    validator: (value) => value == null || value.isEmpty ? 'Please select a state' : null,
                                   ),
                                   SwitchListTile(
-                                    title: const Text('Rental Includes Driver'),
+                                    title: const Text('Rental Includes Driver', style: TextStyle(color: Colors.black87, fontSize: 16)),
                                     value: _rentalIncludesDriver,
                                     onChanged: (bool value) {
                                       setState(() {
                                         _rentalIncludesDriver = value;
                                       });
                                     },
-                                    secondary: const Icon(Icons.directions_car),
+                                    secondary: const Icon(Icons.directions_car, color: Colors.black54),
                                   ),
                                 ],
                               ),
@@ -339,12 +460,15 @@ Future<void> _uploadAdditionalImages(int veiculoId) async {
                               },
                               child: Stack(
                                 children: [
-                                  Image.memory(_additionalImages[index]),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(_additionalImages[index], fit: BoxFit.cover),
+                                  ),
                                   Positioned(
                                     top: 0,
                                     right: 0,
                                     child: IconButton(
-                                      icon: const Icon(Icons.close),
+                                      icon: const Icon(Icons.close, color: Colors.red),
                                       onPressed: () => _removeAdditionalImage(index),
                                     ),
                                   ),
@@ -358,7 +482,88 @@ Future<void> _uploadAdditionalImages(int veiculoId) async {
                           right: 10,
                           child: FloatingActionButton(
                             onPressed: _pickAdditionalImage,
-                            child: const Icon(Icons.add),
+                            backgroundColor: Colors.blue,
+                            child: const Icon(Icons.add, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        // Formulário para adicionar novos detalhes
+                        _buildDetailsForm(),
+                        const SizedBox(height: 20),
+                        // Tabela para exibir os detalhes adicionados
+                        Container(
+                          height: 300, // Altura fixa ou use MediaQuery para altura dinâmica
+                          child: SingleChildScrollView(
+                            child: DataTable(
+                              columns: const [
+                                DataColumn(label: Text('Description')),
+                                DataColumn(label: Text('Start Date')),
+                                DataColumn(label: Text('End Date')),
+                                DataColumn(label: Text('Observations')),
+                                DataColumn(label: Text('Actions')),
+                              ],
+                              rows: _veiculoDetails.map((detail) {
+                                return DataRow(cells: [
+                                  DataCell(Text(detail.description)),
+                                  // Célula para Start Date (abre calendário ao clicar)
+                                  DataCell(
+                                    InkWell(
+                                      onTap: () async {
+                                        final DateTime? pickedDate = await showDatePicker(
+                                          context: context,
+                                          initialDate: detail.startDate,
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (pickedDate != null) {
+                                          setState(() {
+                                            detail.startDate = pickedDate;
+                                          });
+                                        }
+                                      },
+                                      child: Text(
+                                        detail.startDate.toString().split(' ')[0],
+                                      ),
+                                    ),
+                                  ),
+                                  // Célula para End Date (abre calendário ao clicar)
+                                  DataCell(
+                                    InkWell(
+                                      onTap: () async {
+                                        final DateTime? pickedDate = await showDatePicker(
+                                          context: context,
+                                          initialDate: detail.endDate,
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (pickedDate != null) {
+                                          setState(() {
+                                            detail.endDate = pickedDate;
+                                          });
+                                        }
+                                      },
+                                      child: Text(
+                                        detail.endDate.toString().split(' ')[0],
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(Text(detail.obs ?? 'N/A')),
+                                  DataCell(
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _removeDetail(detail),
+                                    ),
+                                  ),
+                                ]);
+                              }).toList(),
+                            ),
                           ),
                         ),
                       ],
@@ -375,13 +580,104 @@ Future<void> _uploadAdditionalImages(int veiculoId) async {
           onPressed: () {
             Navigator.of(context).pop();
           },
-          child: const Text('Cancel'),
+          style: TextButton.styleFrom(
+            backgroundColor: Colors.grey[300],
+            foregroundColor: Colors.black87,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+          child: const Text('Cancel', style: TextStyle(fontSize: 16)),
         ),
         ElevatedButton(
           onPressed: _saveVeiculo,
-          child: const Text('Save'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            elevation: 5,
+          ),
+          child: const Text('Save', style: TextStyle(fontSize: 16)),
         ),
       ],
+    );
+  }
+
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.black87, fontSize: 16),
+          prefixIcon: Icon(icon, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        style: const TextStyle(color: Colors.black87, fontSize: 16),
+        keyboardType: keyboardType,
+        validator: validator,
+      ),
+    );
+  }
+
+  Widget _buildStyledDropdown({
+    required String value,
+    required String labelText,
+    required IconData icon,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: labelText,
+          labelStyle: const TextStyle(color: Colors.black87, fontSize: 16),
+          prefixIcon: Icon(icon, color: Colors.black54),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        items: items.map((item) {
+          return DropdownMenuItem<String>(
+            value: item,
+            child: Text(item, style: const TextStyle(color: Colors.black87, fontSize: 16)),
+          );
+        }).toList(),
+        onChanged: onChanged,
+      ),
     );
   }
 }

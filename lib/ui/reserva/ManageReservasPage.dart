@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:app/models/VeiculoDetails.dart';
 import 'package:app/models/Veiculoimg.dart';
+import 'package:app/services/VeiculoAddService.dart';
 import 'package:app/services/VeiculoImgService.dart';
-import 'package:app/ui/reserva/AddDeliveryLocation.dart';
+import 'package:app/ui/reserva/PaymentAndDeliveryLocation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -30,13 +32,14 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
   bool _isLoading = false;
   String _searchQuery = ''; // Variável para armazenar a consulta de pesquisa
   bool _isGridView = true;
-  
+  // Adicionar esta variável para armazenar a data selecionada
+  DateTime? _selectedDate;
+
   final TextEditingController _searchController = TextEditingController();
 
   String _destinationFilter = '';
-  String _stateFilter = '';
-  String _userFilter = '';
   String _matriculaFilter = '';
+  String _dateFilter = '';
 
   @override
   void initState() {
@@ -81,48 +84,47 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
     }
   }
 
-  // Função para aplicar os filtros de pesquisa
-  void _applyFilters() {
-    setState(() {
-      _filteredReservas = _reservas.where((reserva) {
-        final matchesDestination = reserva.destination
-            .toLowerCase()
-            .contains(_destinationFilter.toLowerCase());
-        final matchesState = reserva.state
-            .toLowerCase()
-            .contains(_stateFilter.toLowerCase());
-        final matchesUser = '${reserva.user.firstName} ${reserva.user.lastName}'
-            .toLowerCase()
-            .contains(_userFilter.toLowerCase());
-        final matchesMatricula = reserva.veiculo.matricula
-            .toLowerCase()
-            .contains(_matriculaFilter.toLowerCase());
+// Método para abrir o DatePicker e selecionar a data
+Future<void> _selectDate(BuildContext context) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: DateTime.now(),
+    firstDate: DateTime(2000),
+    lastDate: DateTime(2100),
+  );
 
-        return matchesDestination ||
-            matchesState ||
-            matchesUser ||
-            matchesMatricula;
-      }).toList();
+  if (picked != null && picked != _selectedDate) {
+    setState(() {
+      _selectedDate = picked;
+      _applyFilters(); // Aplicar os filtros após selecionar a data
     });
   }
+}
+
+ // Atualizar o método _applyFilters para filtrar por data
+void _applyFilters() {
+  setState(() {
+    _filteredReservas = _reservas.where((reserva) {
+      final matchesDestination = reserva.destination
+          .toLowerCase()
+          .contains(_destinationFilter.toLowerCase());
+      final matchesMatricula = reserva.veiculo.matricula
+          .toLowerCase()
+          .contains(_matriculaFilter.toLowerCase());
+      final matchesDate = _selectedDate == null
+          ? true // Se nenhuma data for selecionada, não filtrar por data
+          : reserva.date == "${_selectedDate!.toLocal()}".split(' ')[0]; // Comparar as datas
+
+      return matchesDestination && matchesMatricula && matchesDate;
+    }).toList();
+  });
+}
+
+
 
   void _onSearchChanged(String value) {
     setState(() {
       _destinationFilter = value;
-    });
-    _applyFilters();
-  }
-
-  void _onStateChanged(String value) {
-    setState(() {
-      _stateFilter = value;
-    });
-    _applyFilters();
-  }
-
-  void _onUserChanged(String value) {
-    setState(() {
-      _userFilter = value;
     });
     _applyFilters();
   }
@@ -134,12 +136,25 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
     _applyFilters();
   }
 
+  void _onDateChanged(String value) {
+    setState(() {
+      _dateFilter = value;
+    });
+    _applyFilters();
+  }
+
  void _showVeiculoDetailsDialog(Veiculo veiculo) async {
   // Instância do serviço para buscar as imagens
   final veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
 
   // Estado para armazenar as imagens adicionais
   List<VeiculoImg> imagensAdicionais = [];
+
+  // Instância do serviço para buscar os detalhes do veículo
+  final veiculoServiceAdd = VeiculoServiceAdd(dotenv.env['BASE_URL']!);
+
+  // Estado para armazenar os detalhes do veículo
+  List<VeiculoDetails> veiculoDetails = [];
 
   // Função para buscar as imagens do veículo
   Future<void> fetchImages() async {
@@ -153,8 +168,21 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
     }
   }
 
-  // Buscar as imagens ao abrir o diálogo
+  // Função para buscar os detalhes do veículo
+  Future<void> fetchDetails() async {
+    try {
+      final details = await veiculoServiceAdd.fetchDetailsByVehicleId(veiculo.id);
+      setState(() {
+        veiculoDetails = details;
+      });
+    } catch (e) {
+      print('Failed to fetch details: $e');
+    }
+  }
+
+  // Buscar as imagens e os detalhes ao abrir o diálogo
   await fetchImages();
+  await fetchDetails();
 
   showDialog(
     context: context,
@@ -254,22 +282,111 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Additional Information',
+                              'General Information',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildDetailRow(Icons.build, 'Regular Maintenance', 'Yes'),
-                            _buildDetailRow(Icons.security, 'Active Insurance', 'No'),
-                            _buildDetailRow(Icons.calendar_today, 'Last Inspection', '12/08/2024'),
-                            _buildDetailRow(Icons.calendar_today, 'Next Inspection', '12/08/2025'),
-                            _buildDetailRow(Icons.check_circle, 'Status', 'Operational'),
+                            // Exibir detalhes adicionais do veículo
+                            if (veiculoDetails.isNotEmpty)
+                              ...veiculoDetails.map((detail) {
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  elevation: 3,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  detail.description ?? 'N/A', // Verificação de nulidade para description
+                                                  style: const TextStyle(fontWeight: FontWeight.w500),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                flex: 1,
+                                                child: Text(
+                                                  detail.startDate != null
+                                                      ? detail.startDate!.toString().split(' ')[0] // Verificação de nulidade para startDate
+                                                      : 'N/A',
+                                                  style: const TextStyle(color: Colors.grey),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                flex: 1,
+                                                child: Text(
+                                                  detail.endDate != null
+                                                      ? detail.endDate!.toString().split(' ')[0] // Verificação de nulidade para endDate
+                                                      : 'N/A',
+                                                  style: const TextStyle(color: Colors.grey),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  detail.obs ?? 'N/A', // Verificação de nulidade para obs
+                                                  style: const TextStyle(color: Colors.grey),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete, color: Colors.red),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    veiculoDetails.remove(detail);
+                                                  });
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                detail.obs ?? 'N/A',
+                                                style: const TextStyle(color: Colors.grey),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete, color: Colors.red),
+                                              onPressed: () {
+                                                setState(() {
+                                                  veiculoDetails.remove(detail);
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
                           ],
                         ),
                       ),
-                      // "Additional Images" Tab
                       // "Additional Images" Tab
                       SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
@@ -284,20 +401,33 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            // Exibir as imagens adicionais
+                            // Exibir as imagens adicionais em um GridView
                             imagensAdicionais.isNotEmpty
-                                ? Column(
-                                    children: imagensAdicionais.map((veiculoImg) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(bottom: 8.0),
-                                        child: Image.memory(
-                                          base64Decode(veiculoImg.imageBase64), // Usando imageBase64
-                                          fit: BoxFit.cover,
-                                          height: 200,
-                                          width: double.infinity-100,
+                                ? GridView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3,
+                                      crossAxisSpacing: 8,
+                                      mainAxisSpacing: 8,
+                                      childAspectRatio: 1,
+                                    ),
+                                    itemCount: imagensAdicionais.length,
+                                    itemBuilder: (context, index) {
+                                      final veiculoImg = imagensAdicionais[index];
+                                      return GestureDetector(
+                                        onTap: () {
+                                          // Ação ao clicar na imagem (opcional)
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.memory(
+                                            base64Decode(veiculoImg.imageBase64),
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                       );
-                                    }).toList(),
+                                    },
                                   )
                                 : const Center(child: Text('No additional images available.')),
                           ],
@@ -312,15 +442,15 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
         ),
         actions: [
           TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Fechar o diálogo
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.blue, // Fundo azul
-                foregroundColor: Colors.white, // Texto branco
-              ),
-              child: const Text('Close'),
+            onPressed: () {
+              Navigator.of(context).pop(); // Fechar o diálogo
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.blue, // Fundo azul
+              foregroundColor: Colors.white, // Texto branco
             ),
+            child: const Text('Close'),
+          ),
         ],
       );
     },
@@ -564,7 +694,7 @@ String _addPadding(String base64String) {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => AddDeliveryLocation(reservaId: reservaId),
+          builder: (context) => PaymentAndDeliveryLocation(reservaId: reservaId, userId: 1,),
         ),
       );
 
@@ -659,27 +789,32 @@ Widget build(BuildContext context) {
               Expanded(
                 child: TextField(
                   decoration: const InputDecoration(
-                    labelText: 'State',
-                  ),
-                  onChanged: _onStateChanged,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'User',
-                  ),
-                  onChanged: _onUserChanged,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  decoration: const InputDecoration(
                     labelText: 'Matricula',
                   ),
                   onChanged: _onMatriculaChanged,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _selectDate(context), // Abrir o DatePicker ao clicar
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Reservation Date',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedDate == null
+                              ? 'Select a date'
+                              : "${_selectedDate!.toLocal()}".split(' ')[0], // Exibir a data selecionada
+                        ),
+                        const Icon(Icons.calendar_today),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -773,14 +908,36 @@ Widget build(BuildContext context) {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (reserva.state == 'Not Confirmed')
-                                      IconButton(
-                                        icon: const Icon(Icons.check),
-                                        onPressed: () => _confirmReserva(reserva.id),
+                                      Tooltip(
+                                        message: 'Confirm reservation', // Texto do tooltip
+                                        child: Material(
+                                          color: Colors.lightBlue, // Cor de fundo azul claro
+                                          shape: const CircleBorder(), // Formato circular
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
+                                            onTap: () => _confirmReserva(reserva.id),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.check, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _deleteReserva(reserva.id),
-                                    ),
+                                      Tooltip(
+                                        message: 'Delete reservation', // Texto do tooltip
+                                        child: Material(
+                                          color: Colors.redAccent, // Cor de fundo azul claro
+                                          shape: const CircleBorder(), // Formato circular
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
+                                            onTap: () => _deleteReserva(reserva.id),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.delete_forever, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      )
                                   ],
                                 ),
                               ),
@@ -862,14 +1019,36 @@ Widget build(BuildContext context) {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (reserva.state == 'Not Confirmed')
-                                  IconButton(
-                                    icon: const Icon(Icons.check),
-                                    onPressed: () => _confirmReserva(reserva.id),
+                                  Tooltip(
+                                  message: 'Confirm reservation', // Texto do tooltip
+                                  child: Material(
+                                    color: Colors.lightBlue, // Cor de fundo azul claro
+                                    shape: const CircleBorder(), // Formato circular
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
+                                      onTap: () => _confirmReserva(reserva.id),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: Icon(Icons.check, color: Colors.white),
+                                      ),
+                                    ),
                                   ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () => _deleteReserva(reserva.id),
                                 ),
+                                Tooltip(
+                                  message: 'Delete reservation', // Texto do tooltip
+                                  child: Material(
+                                    color: Colors.redAccent, // Cor de fundo azul claro
+                                    shape: const CircleBorder(), // Formato circular
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
+                                      onTap: () => _deleteReserva(reserva.id),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: Icon(Icons.delete_forever, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                )
                               ],
                             ),
                           ),
@@ -947,7 +1126,9 @@ Future<void> _deleteReserva(int reservaId) async {
 }
 }
 
-
+extension on DateTime {
+  toLowerCase() {}
+}
 
 class VeiculoService {
   Future<Veiculo> getVeiculoByMatricula(String matricula) async {

@@ -14,6 +14,7 @@ import 'package:app/ui/manutencao/ManageManutencoesPage.dart';
 import 'package:app/ui/oficina/ManageOficinasPage.dart';
 import 'package:app/ui/pagamento/ManageConfirmPaymentPage.dart';
 import 'package:app/ui/pagamento/ManagePaymentPage.dart';
+import 'package:app/ui/pagamento/ManageReservationPaymentPage.dart';
 import 'package:app/ui/postoabastencimento/ManagePostosPage.dart';
 import 'package:app/ui/reserva/ManageReservasPage.dart';
 import 'package:app/ui/reserva/MapSelectionScreen.dart';
@@ -79,6 +80,8 @@ class _MainScreenState extends State<MainScreen> {
         return AtendimentoChartPage();
       case '/reservationsAndService':
         return ReservationsAndServiceChartPage();
+      case '/pagamentoreserva':
+        return ManageReservationPaymentPage();
       case '/geolocation':
       return MapSelectionScreen(); 
       case '/settings':

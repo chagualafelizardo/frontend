@@ -79,4 +79,6 @@ class VeiculoAdd {
       updatedAt: DateTime.parse(json['updatedAt']),
     );
   }
+
+  get details => null;
 }

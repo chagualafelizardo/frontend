@@ -7,10 +7,10 @@ WORKDIR /usr/share/nginx/html
 # Remove arquivos padrão do Nginx
 RUN rm -rf ./*
 
-# Copia a pasta 'web' do seu projeto para o diretório do Nginx
-COPY web/ .
+# Copia a pasta 'build/web' do seu projeto Flutter para o diretório do Nginx
+COPY build/web/ .
 
-# Conceda permissões de execução ao script de entrada
+# Concede permissões de execução ao script de entrada
 RUN chmod +x /docker-entrypoint.sh
 
 # Expõe a porta 80 para acesso ao servidor

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: my-flutter-app  # Nome do serviço na Render
+    runtime: docker
+    repo: https://gitlab.com/lncarrental/frontend  # URL do teu repositório
+    region: oregon  # Escolhe a região (pode ser "oregon" ou "frankfurt")
+    rootDir: .  # Diretório raiz do projeto
+    plan: free  # Pode mudar para "starter" ou outro plano
+    envVars:
+      - key: FLUTTER_WEB
+        value: "true"
+    dockerfilePath: ./Dockerfile  # Caminho para o teu Dockerfile
+    autoDeploy: true  # Ativa deploys automáticos quando faz push no repositório

@@ -283,8 +283,8 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
                         return Container(
                           decoration: BoxDecoration(
                             color: index.isEven
-                                ? Colors.grey.shade200
-                                : Colors.grey.shade100,
+                                ? const Color.fromARGB(255, 63, 63, 63)
+                                : const Color.fromARGB(255, 12, 12, 12),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: CheckboxListTile(

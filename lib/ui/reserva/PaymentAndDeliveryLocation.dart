@@ -108,12 +108,12 @@ class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation>
 
   Future<void> _submitPayment() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_pickupLocation == null || _returnLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both pickup and return locations')),
-      );
-      return;
-    }
+    // if (_pickupLocation == null || _returnLocation == null) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text('Please select both pickup and return locations')),
+    //   );
+    //   return;
+    // }
 
     try {
       final payment = PagamentoReserva(

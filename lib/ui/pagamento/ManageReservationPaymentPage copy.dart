@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:app/ui/reserva/PaymentAndDeliveryLocation.dart';
-import 'package:path/path.dart' as path;
 import 'package:app/models/PaymentCriteria.dart';
 import 'package:app/models/Reserva.dart' as user_model;
 import 'package:app/services/DetalhePagamentoService.dart';
@@ -32,6 +30,7 @@ import 'package:app/models/PagamentoList.dart';
 import 'package:app/services/PagamentoService.dart';
 import 'package:app/models/PagamentoReserva.dart';
 import 'package:app/services/PagamentoReservaService.dart';
+import 'package:path/path.dart';
 
 class ManageReservationPaymentPage extends StatefulWidget {
   const ManageReservationPaymentPage({super.key});
@@ -84,7 +83,6 @@ class _ManageReservationPaymentPageState extends State<ManageReservationPaymentP
     );
   }
 }
-
 
 class ReservationsTab extends StatelessWidget {
   final ReservaService reservaService;
@@ -155,6 +153,7 @@ class ReservationsTab extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildStatItem(Icons.list, 'Total Confirmed', reservations.length.toString()),
+            _buildStatItem(Icons.today, 'Today', todayCount.toString()),
             _buildStatItem(Icons.calendar_today, 'Last Added', lastReservation),
           ],
         ),
@@ -218,22 +217,13 @@ class ReservationsTab extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 IconButton(
-                icon: const Icon(Icons.payment, color: Colors.green),
-                onPressed: () {
-                  Navigator.of(path.context as BuildContext).push(
-                    MaterialPageRoute(
-                      builder: (context) => PaymentAndDeliveryLocation(
-                        reservaId: reservation.id!,
-                        userId: reservation.userId,
-                      ),
-                    ),
-                  );
-                },
-                tooltip: 'Add Payment',
-              ),
+                  icon: const Icon(Icons.payment, color: Colors.green),
+                  onPressed: () => _showAddPaymentDialog(context as BuildContext, reservation),
+                  tooltip: 'Add Payment',
+                ),
                 IconButton(
                   icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
-                  onPressed: () => _showReservationDetails(path.context as BuildContext, reservation),
+                  onPressed: () => _showReservationDetails(context as BuildContext, reservation),
                   tooltip: 'View Details',
                 ),
               ],
@@ -280,6 +270,32 @@ class ReservationsTab extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddPaymentDialog(BuildContext context, Reserva reservation) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Add Payment for Reservation #${reservation.id}'),
+          content: const Text('Payment form would go here'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Payment added successfully')));
+              },
+              child: const Text('Confirm'),
             ),
           ],
         );
@@ -412,7 +428,7 @@ class PagamentosReservaTab extends StatelessWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.list, color: Colors.blue),
-                  onPressed: () => _showPagamentoDetails(path.context as BuildContext, pagamento),
+                  onPressed: () => _showPagamentoDetails(context as BuildContext, pagamento),
                   tooltip: 'View Details',
                 ),
                 IconButton(

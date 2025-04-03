@@ -1,13 +1,9 @@
 services:
   - type: web
-    name: ln-app  # Nome do serviço na Render
-    runtime: docker
-    repo: https://gitlab.com/lncarrental/frontend  # URL do teu repositório
-    region: oregon  # Escolhe a região (pode ser "oregon" ou "frankfurt")
-    rootDir: .  # Diretório raiz do projeto
-    plan: free  # Pode mudar para "starter" ou outro plano
+    name: lncarrental-app
+    env: docker
+    buildCommand: "docker build -t lncarrental-app ."
+    startCommand: "docker run -p 8080:80 lncarrental-app"
     envVars:
-      - key: FLUTTER_WEB
-        value: "true"
-    dockerfilePath: ./Dockerfile  # Caminho para o teu Dockerfile
-    autoDeploy: true  # Ativa deploys automáticos quando faz push no repositório
+      - key: FLUTTER_WEB_HOST
+        value: "0.0.0.0"

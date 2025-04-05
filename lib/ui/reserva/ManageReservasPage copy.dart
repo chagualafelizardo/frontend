@@ -34,8 +34,7 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
   String _searchQuery = ''; // Variável para armazenar a consulta de pesquisa
   bool _isGridView = true;
   // Adicionar esta variável para armazenar a data selecionada
-  DateTime? _startDate;
-  DateTime? _endDate;
+  DateTime? _selectedDate;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -88,25 +87,24 @@ class _ManageReservasPageState extends State<ManageReservasPage> {
     }
   }
 
-Future<void> _selectDateRange(BuildContext context) async {
-  final DateTimeRange? picked = await showDateRangePicker(
+// Método para abrir o DatePicker e selecionar a data
+Future<void> _selectDate(BuildContext context) async {
+  final DateTime? picked = await showDatePicker(
     context: context,
+    initialDate: _selectedDate ?? DateTime.now(),
     firstDate: DateTime(2000),
     lastDate: DateTime(2100),
-    initialDateRange: _startDate != null && _endDate != null
-        ? DateTimeRange(start: _startDate!, end: _endDate!)
-        : null,
     builder: (context, child) {
       return Theme(
         data: Theme.of(context).copyWith(
           colorScheme: ColorScheme.light(
-            primary: Colors.blue,
-            onPrimary: Colors.white,
-            onSurface: Colors.black,
+            primary: Colors.blue, // Cor principal
+            onPrimary: Colors.white, // Cor do texto no cabeçalho
+            onSurface: Colors.black, // Cor do texto no calendário
           ),
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(
-              foregroundColor: Colors.blue,
+              foregroundColor: Colors.blue, // Cor dos botões
             ),
           ),
         ),
@@ -115,10 +113,9 @@ Future<void> _selectDateRange(BuildContext context) async {
     },
   );
 
-  if (picked != null) {
+  if (picked != null && picked != _selectedDate) {
     setState(() {
-      _startDate = picked.start;
-      _endDate = picked.end;
+      _selectedDate = picked;
       _applyFilters();
     });
   }
@@ -128,29 +125,29 @@ Future<void> _selectDateRange(BuildContext context) async {
 void _applyFilters() {
   setState(() {
     _filteredReservas = _reservas.where((reserva) {
-      final reservaDate = reserva.date;
+      // Formatar a data da reserva para comparar apenas a parte da data (YYYY-MM-DD)
+      final reservaDateFormatted = DateFormat('yyyy-MM-dd').format(reserva.date);
       
+      // Formatar a data selecionada para o mesmo formato
+      final selectedDateFormatted = _selectedDate != null 
+          ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
+          : null;
+
       final matchesDestination = reserva.destination
           .toLowerCase()
           .contains(_destinationFilter.toLowerCase());
       final matchesMatricula = reserva.veiculo.matricula
           .toLowerCase()
           .contains(_matriculaFilter.toLowerCase());
-      
-      bool matchesDate = true;
-      if (_startDate != null && _endDate != null) {
-        matchesDate = reservaDate.isAfter(_startDate!.subtract(const Duration(days: 1))) && 
-                     reservaDate.isBefore(_endDate!.add(const Duration(days: 1)));
-      } else if (_startDate != null) {
-        matchesDate = reservaDate.isAfter(_startDate!.subtract(const Duration(days: 1)));
-      } else if (_endDate != null) {
-        matchesDate = reservaDate.isBefore(_endDate!.add(const Duration(days: 1)));
-      }
+      final matchesDate = selectedDateFormatted == null || 
+          reservaDateFormatted == selectedDateFormatted;
 
       return matchesDestination && matchesMatricula && matchesDate;
     }).toList();
   });
 }
+
+
 
   void _onSearchChanged(String value) {
     setState(() {
@@ -826,42 +823,39 @@ Widget build(BuildContext context) {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: InkWell(
-                  onTap: () => _selectDateRange(context),
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Date Range',
-                      border: OutlineInputBorder(),
-                      suffixIcon: _startDate != null || _endDate != null
-                          ? Icon(Icons.filter_alt, color: Colors.blue)
-                          : Icon(Icons.calendar_today),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _startDate == null && _endDate == null
-                              ? 'Select date range'
-                              : '${_startDate != null ? DateFormat('yyyy-MM-dd').format(_startDate!) : ''}'
-                                  ' - '
-                                  '${_endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : ''}',
+              child: InkWell(
+                onTap: () => _selectDate(context),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Reservation Date',
+                    border: OutlineInputBorder(),
+                    suffixIcon: _selectedDate != null
+                        ? Icon(Icons.filter_alt, color: Colors.blue)
+                        : Icon(Icons.calendar_today),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _selectedDate == null
+                            ? 'Select a date'
+                            : DateFormat('yyyy-MM-dd').format(_selectedDate!),
+                      ),
+                      if (_selectedDate != null)
+                        IconButton(
+                          icon: Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            setState(() {
+                              _selectedDate = null;
+                              _applyFilters();
+                            });
+                          },
                         ),
-                        if (_startDate != null || _endDate != null)
-                          IconButton(
-                            icon: Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              setState(() {
-                                _startDate = null;
-                                _endDate = null;
-                                _applyFilters();
-                              });
-                            },
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),
+            ),
             ],
           ),
         ),

@@ -19,23 +19,28 @@ class UserServiceReserva {
     }
   }
 
-  // Future<List<User>> getClient() async {
-  //   final response = await http.get(Uri.parse('$apiUrl/user'));
-
-  //   if (response.statusCode == 200) {
-  //     final List<dynamic> data = json.decode(response.body);
-  //     print('Fetched users data: $data'); // Log da resposta
-  //     return data.map((json) => User.fromJson(json)).toList();
-  //   } else {
-  //     print('Failed to fetch users: ${response.body}');
-  //     throw Exception('Failed to load users');
-  //   }
-  // }
-  
   // Método para buscar todos os clientes
   Future<List<User>> getAllClients() async {
     try {
       final response = await http.get(Uri.parse('$apiUrl/userrole/clients'));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        print('Fetched clients data: $data'); // Log da resposta
+        return data.map((user) => User.fromJson(user)).toList();
+      } else {
+        print('Failed to fetch clients: ${response.body}');
+        return [];
+      }
+    } catch (error) {
+      print('Error fetching clients: $error');
+      return [];
+    }
+  }
+
+   Future<List<User>> getAllMotoristas() async {
+    try {
+      final response = await http.get(Uri.parse('$apiUrl/userrole/motorista'));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);

@@ -82,42 +82,5 @@ Future<List<Role>> getRolesByUserId(int userId) async {
       print('Error removing roles: $error');
       return false;
     }
-  }
-  
-  // Método para buscar todos os motoristas
-  Future<List<User>> getAllDrivers() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/user/drivers'));
-
-      if (response.statusCode == 200) {
-        List<dynamic> data = jsonDecode(response.body);
-        return data.map((user) => User.fromJson(user)).toList();
-      } else {
-        print('Failed to fetch drivers: ${response.body}');
-        return [];
-      }
-    } catch (error) {
-      print('Error fetching drivers: $error');
-      return [];
-    }
-  }
-
-  // Método para buscar todos os clientes
-  Future<List<User>> getAllClients() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/user/clients'));
-
-      if (response.statusCode == 200) {
-        List<dynamic> data = jsonDecode(response.body);
-        return data.map((user) => User.fromJson(user)).toList();
-      } else {
-        print('Failed to fetch clients: ${response.body}');
-        return [];
-      }
-    } catch (error) {
-      print('Error fetching clients: $error');
-      return [];
-    }
-  }
-  
+  } 
 }

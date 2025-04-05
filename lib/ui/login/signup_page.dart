@@ -16,17 +16,16 @@ class SignupPage extends StatefulWidget {
 
 class _SignupPageState extends State<SignupPage> {
   final _formKey = GlobalKey<FormState>();
-  String _selectedUserType = ''; // Role padrão
+  String _selectedUserType = '';
   List<String> _roles = [];
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final DateTime _currentDateTime = DateTime.now();
   bool _isLoading = false;
-  String _gender = ''; // Variável para seleção de gênero
+  String _gender = '';
   String? _defaultImageBase64;
 
   @override
@@ -53,7 +52,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> _loadDefaultImage() async {
-    final ByteData imageData = await rootBundle.load('images/user_default.png');
+    final ByteData imageData = await rootBundle.load('assets/images/user_default.png');
     final List<int> imageBytes = imageData.buffer.asUint8List();
     setState(() {
       _defaultImageBase64 = base64Encode(imageBytes);
@@ -73,22 +72,21 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final user = User(
-        id: 0, // ou um valor adequado, se disponível
+        id: 0,
         username: _usernameController.text,
         firstName: _usernameController.text,
         lastName: _usernameController.text,
         gender: _gender,
         birthdate: _currentDateTime.toIso8601String(),
-        address: ' ', // ou um valor adequado, se disponível
-        neighborhood: ' ', // ou um valor adequado, se disponível
+        address: ' ',
+        neighborhood: ' ',
         email: _emailController.text,
         phone1: _contactController.text,
         phone2: _contactController.text,
         password: _passwordController.text,
-        img: _defaultImageBase64!, // Mantido como String base64
+        img: _defaultImageBase64!,
         state: 'inactive',
-        createdAt: _currentDateTime, // Valor DateTime
-        // updatedAt: _currentDateTime, roles: [], // Valor DateTime
+        createdAt: _currentDateTime,
       );
 
       final userService = UserService(dotenv.env['BASE_URL']!);
@@ -111,50 +109,53 @@ class _SignupPageState extends State<SignupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sign Up')),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text('Sign Up', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.blue[700],
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const Text("Sign up",
-                        style: TextStyle(
-                            fontSize: 30, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    const Text("Create your account",
-                        style: TextStyle(fontSize: 15, color: Colors.grey)),
-                    const SizedBox(height: 30),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: InputDecoration(
-                        hintText: "Username",
-                        prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor: const Color.fromARGB(255, 10, 10, 10),
+                    const Text(
+                      "Sign up",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Create your account",
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 32),
+                    _buildTextField(
+                      controller: _usernameController,
+                      hintText: "Username",
+                      icon: Icons.person,
                       validator: (value) => value == null || value.isEmpty
                           ? 'Please enter your username'
                           : null,
                     ),
-                    const SizedBox(height: 20),
-                    TextFormField(
+                    const SizedBox(height: 16),
+                    _buildTextField(
                       controller: _emailController,
-                      decoration: InputDecoration(
-                        hintText: "Email",
-                        prefixIcon: const Icon(Icons.email),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor:const Color.fromARGB(255, 10, 10, 10),
-                      ),
+                      hintText: "Email",
+                      icon: Icons.email,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter your email';
@@ -165,111 +166,34 @@ class _SignupPageState extends State<SignupPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 20),
-                    TextFormField(
+                    const SizedBox(height: 16),
+                    _buildTextField(
                       controller: _contactController,
-                      decoration: InputDecoration(
-                        hintText: "Contact",
-                        prefixIcon: const Icon(Icons.phone),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor: const Color.fromARGB(255, 10, 10, 10),
-                      ),
+                      hintText: "Contact",
+                      icon: Icons.phone,
                       validator: (value) => value == null || value.isEmpty
                           ? 'Please enter your contact number'
                           : null,
                     ),
-                    const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      value:
-                          _selectedUserType.isEmpty ? null : _selectedUserType,
-                      decoration: InputDecoration(
-                        hintText: "Select user role",
-                        prefixIcon: const Icon(Icons.person_outline),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor: const Color.fromARGB(255, 10, 10, 10),
-                      ),
-                      hint: const Text("Select a user role"),
-                      items: _roles.map((String userType) {
-                        return DropdownMenuItem<String>(
-                          value: userType,
-                          child: Text(userType),
-                        );
-                      }).toList(),
-                      onChanged: (newValue) {
-                        setState(() {
-                          _selectedUserType = newValue ?? '';
-                        });
-                      },
-                      validator: (value) =>
-                          value == null ? 'Please select a user role' : null,
-                    ),
-                    const SizedBox(height: 20),
-                    const Text("Gender", style: TextStyle(fontSize: 16)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Radio<String>(
-                          value: 'M',
-                          groupValue: _gender,
-                          onChanged: (value) {
-                            setState(() {
-                              _gender = value!;
-                            });
-                          },
-                        ),
-                        const Text("Male"),
-                        Radio<String>(
-                          value: 'F',
-                          groupValue: _gender,
-                          onChanged: (value) {
-                            setState(() {
-                              _gender = value!;
-                            });
-                          },
-                        ),
-                        const Text("Female"),
-                      ],
-                    ),
-                    if (_gender.isEmpty)
-                      const Text(
-                        'Please select your gender',
-                        style: TextStyle(color: Colors.red, fontSize: 12),
-                      ),
-                    const SizedBox(height: 20),
-                    TextFormField(
+                    const SizedBox(height: 16),
+                    _buildDropdown(),
+                    const SizedBox(height: 16),
+                    _buildGenderSelection(),
+                    const SizedBox(height: 16),
+                    _buildTextField(
                       controller: _passwordController,
-                      decoration: InputDecoration(
-                        hintText: "Password",
-                        prefixIcon: const Icon(Icons.lock),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor: const Color.fromARGB(255, 10, 10, 10),
-                      ),
+                      hintText: "Password",
+                      icon: Icons.lock,
                       obscureText: true,
                       validator: (value) => value == null || value.isEmpty
                           ? 'Please enter your password'
                           : null,
                     ),
-                    const SizedBox(height: 20),
-                    TextFormField(
+                    const SizedBox(height: 16),
+                    _buildTextField(
                       controller: _confirmPasswordController,
-                      decoration: InputDecoration(
-                        hintText: "Confirm Password",
-                        prefixIcon: const Icon(Icons.lock),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor: const Color.fromARGB(255, 10, 10, 10),
-                      ),
+                      hintText: "Confirm Password",
+                      icon: Icons.lock,
                       obscureText: true,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -281,36 +205,183 @@ class _SignupPageState extends State<SignupPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 30),
+                    const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: () {
-                        if (_formKey.currentState!.validate()) {
+                        if (_formKey.currentState!.validate() && _gender.isNotEmpty) {
                           saveUser();
+                        } else if (_gender.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select your gender')),
+                          );
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.blue[700],
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18)),
-                        padding: const EdgeInsets.symmetric(vertical: 15),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Sign Up'),
+                      child: const Text(
+                        'Sign Up',
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Center(
                       child: TextButton(
                         onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                  builder: (context) => const LoginPage()));
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginPage()),
+                          );
                         },
-                        child: const Text("Already have an account? Log in"),
+                        child: const Text(
+                          "Already have an account? Log in",
+                          style: TextStyle(color: Colors.blue),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    required String? Function(String?)? validator,
+    bool obscureText = false,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      style: const TextStyle(color: Colors.black87),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey[600]),
+        prefixIcon: Icon(icon, color: Colors.grey[700]),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[400]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[400]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.blue, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget _buildDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedUserType.isEmpty ? null : _selectedUserType,
+      style: const TextStyle(color: Colors.black87),
+      decoration: InputDecoration(
+        hintText: "Select user role",
+        hintStyle: TextStyle(color: Colors.grey[600]),
+        prefixIcon: Icon(Icons.person_outline, color: Colors.grey[700]),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[400]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[400]!),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+      hint: const Text("Select a user role"),
+      items: _roles.map((String userType) {
+        return DropdownMenuItem<String>(
+          value: userType,
+          child: Text(userType),
+        );
+      }).toList(),
+      onChanged: (newValue) {
+        setState(() {
+          _selectedUserType = newValue ?? '';
+        });
+      },
+      validator: (value) => value == null ? 'Please select a user role' : null,
+    );
+  }
+
+  Widget _buildGenderSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Gender",
+          style: TextStyle(fontSize: 16, color: Colors.black87),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                "Male",
+                style: TextStyle(color: Colors.black), 
+              ),
+              leading: Radio<String>(
+                value: 'M',
+                groupValue: _gender,
+                fillColor: MaterialStateColor.resolveWith((states) => Colors.blue),
+                onChanged: (value) {
+                  setState(() {
+                    _gender = value!;
+                  });
+                },
+              ),
+            ),
+          ),
+            Expanded(
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  "Famale",
+                  style: TextStyle(color: Colors.black), 
+                ),
+                leading: Radio<String>(
+                  value: 'F',
+                  groupValue: _gender,
+                  fillColor: MaterialStateColor.resolveWith((states) => Colors.blue),
+                  onChanged: (value) {
+                    setState(() {
+                      _gender = value!;
+                    });
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_gender.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              'Please select your gender',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 }

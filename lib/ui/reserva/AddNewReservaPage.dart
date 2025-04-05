@@ -10,7 +10,6 @@ import 'package:app/ui/veiculo/ImagePreviewPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:app/services/RoleService.dart';
 import 'package:app/services/UserRoleService.dart';
 
 class AddNewReservaForm extends StatefulWidget {

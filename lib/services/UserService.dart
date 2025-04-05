@@ -19,32 +19,17 @@ class UserService {
     }
   }
 
-  Future<List<User>> getClient() async {
-    final response = await http.get(Uri.parse('$apiUrl/user'));
+  Future<List<dynamic>> getAllMotoristas() async {
+    final response = await http.get(Uri.parse('$apiUrl/userrole/motorista'));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      print('Fetched users data: $data'); // Log da resposta
-      return data.map((json) => User.fromJson(json)).toList();
+      return data;
     } else {
-      print('Failed to fetch users: ${response.body}');
       throw Exception('Failed to load users');
     }
   }
 
-  // Future<User> createUser(User user) async {
-  //   final response = await http.post(
-  //     Uri.parse('$apiUrl/user'),
-  //     headers: {'Content-Type': 'application/json'},
-  //     body: json.encode(user.toJson()),
-  //   );
-
-  //   if (response.statusCode == 201) {
-  //     return User.fromJson(json.decode(response.body));
-  //   } else {
-  //     throw Exception('Failed to create user');
-  //   }
-  // }
 
 Future<User> createUser(User user) async {
   try {

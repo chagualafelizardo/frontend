@@ -1,4 +1,3 @@
-import 'package:app/models/UserRole.dart';
 
 class User {
   final int id;
@@ -6,7 +5,7 @@ class User {
   final String? firstName;
   final String? lastName;
   final String? gender;
-  final String birthdate;
+  final String birthdate; // Alterado para String
   final String email;
   final String? address;
   final String? neighborhood;
@@ -17,7 +16,6 @@ class User {
   final String? img;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  final List<UserRole> roles; // Adicionando lista de roles
 
   User({
     required this.id,
@@ -25,7 +23,7 @@ class User {
     this.firstName,
     this.lastName,
     this.gender,
-    required this.birthdate,
+    required this.birthdate, // Alterado para String
     required this.email,
     this.address,
     this.neighborhood,
@@ -36,7 +34,6 @@ class User {
     this.img,
     this.createdAt,
     this.updatedAt,
-    this.roles = const [], // Inicializa como lista vazia
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -57,12 +54,30 @@ class User {
       img: json['img'],
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
-      roles: json['roles'] != null 
-          ? (json['roles'] as List).map((role) => UserRole.fromJson(role)).toList()
-          : [], // Parse das roles
     );
-  }
+}
 
+
+// factory User.fromJson(Map<String, dynamic> json) {
+//     return User(
+//       id: json['id'] as int,
+//       username: json['username'] as String,
+//       firstName: json['firstName'] as String?,
+//       lastName: json['lastName'] as String?,
+//       gender: json['gender'] as String?,
+//       birthdate: json['birthdate'], 
+//       email: json['email'] as String,
+//       address: json['address'] as String?,
+//       neighborhood: json['neighborhood'] as String?,
+//       phone1: json['phone1'] as String?,
+//       phone2: json['phone2'] as String?,
+//       password: json['password'] as String,
+//       state: json['state'] as String,
+//       img: json['img']?.toString(), // Garante que img seja String
+//       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
+//       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+//     );
+// }
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -70,7 +85,7 @@ class User {
       'firstName': firstName,
       'lastName': lastName,
       'gender': gender,
-      'birthdate': birthdate,
+      'birthdate': birthdate, // Mantém como String
       'email': email,
       'address': address,
       'neighborhood': neighborhood,
@@ -81,7 +96,6 @@ class User {
       'img': img,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
-      'roles': roles.map((role) => role.toJson()).toList(), // Inclui roles no JSON
     };
   }
 }

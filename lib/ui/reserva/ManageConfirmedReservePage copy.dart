@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:app/models/Reserva.dart';
 import 'package:app/services/ReservaService.dart';
 import 'package:app/ui/reserva/AddNewReservaPage.dart';
-import 'package:intl/intl.dart';
 
 class ManageConfirmedReservasPage extends StatefulWidget {
   const ManageConfirmedReservasPage({super.key});
@@ -38,8 +37,7 @@ class _ManageConfirmedReservasPageState
   String _vehicleFilter = '';
   String _userFilter = '';
   bool _isGridView = true;
-  DateTime? _startDate;
-  DateTime? _endDate;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -47,90 +45,66 @@ class _ManageConfirmedReservasPageState
     _fetchReservas();
   }
 
-void _applyFilters() {
-  setState(() {
-    _filteredReservas = _reservas.where((reserva) {
-      // Converter a string da reserva para DateTime
-      final reservaDate = reserva.date;
-      
-      final matchesDestination = reserva.destination
-          .toLowerCase()
-          .contains(_destinationFilter.toLowerCase());
-      
-      bool matchesDate = true;
-      if (_startDate != null && _endDate != null) {
-        matchesDate = reservaDate.isAfter(_startDate!.subtract(const Duration(days: 1))) && 
-                     reservaDate.isBefore(_endDate!.add(const Duration(days: 1)));
-      } else if (_startDate != null) {
-        matchesDate = reservaDate.isAfter(_startDate!.subtract(const Duration(days: 1)));
-      } else if (_endDate != null) {
-        matchesDate = reservaDate.isBefore(_endDate!.add(const Duration(days: 1)));
-      }
-
-      return matchesDestination && matchesDate;
-    }).toList();
-  });
-}
   // Método para abrir o DatePicker e selecionar a data
 Future<void> _selectDate(BuildContext context) async {
-  final DateTimeRange? picked = await showDateRangePicker(
+  final DateTime? picked = await showDatePicker(
     context: context,
+    initialDate: DateTime.now(),
     firstDate: DateTime(2000),
     lastDate: DateTime(2100),
-    initialDateRange: _startDate != null && _endDate != null
-        ? DateTimeRange(start: _startDate!, end: _endDate!)
-        : null,
   );
 
-  if (picked != null) {
+  if (picked != null && picked != _selectedDate) {
     setState(() {
-      _startDate = picked.start;
-      _endDate = picked.end;
-      _applyFilters(); // Aplica os filtros imediatamente após seleção
+      _selectedDate = picked;
+      _fetchReservas(); // Aplicar os filtros após selecionar a data
     });
   }
 }
+
 
   Future<void> _fetchReservas() async {
-  if (_isLoading || !_hasMore) return;
-
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    List<Reserva> reservas = await _reservaService.getReservas(
-      page: _currentPage,
-      pageSize: _pageSize,
-    );
+    if (_isLoading || !_hasMore) return;
 
     setState(() {
-      if (reservas.isEmpty) {
-        _hasMore = false;
-      } else {
-        // Filtra apenas reservas confirmadas
-        _reservas.addAll(reservas.where((reserva) => reserva.state == 'Confirmed'));
-        
-        // Ordena por ID decrescente
-        _reservas.sort((a, b) => b.id.compareTo(a.id));
-        
-        _currentPage++;
-      }
-      _isLoading = false;
-      _applyFilters(); // Aplica os filtros após carregar
+      _isLoading = true;
     });
-  } catch (e) {
-    print('Error fetching reservas: $e');
-    setState(() {
-      _isLoading = false;
-    });
-  }
-}
 
+    try {
+      List<Reserva> reservas = await _reservaService.getReservas(
+        page: _currentPage,
+        pageSize: _pageSize,
+      );
 
-  String _formatDate(DateTime date) {
-    return DateFormat('yyyy-MM-dd').format(date);
+      setState(() {
+        if (reservas.isEmpty) {
+          _hasMore = false;
+        } else {
+          // Filtrar apenas as reservas confirmadas e que correspondem à data selecionada
+          _reservas = reservas
+              .where((reserva) =>
+                  reserva.state == 'Confirmed' &&
+                  (reserva.destination.contains(_destinationFilter)) &&
+                  (_selectedDate == null ||
+                      reserva.date == "${_selectedDate!.toLocal()}".split(' ')[0]))
+              .toList();
+
+          // Ordenar a lista de reservas pelo ID da reserva em ordem decrescente
+          _reservas.sort((a, b) => b.id.compareTo(a.id));
+
+          _currentPage++;
+        }
+        _isLoading = false;
+        _filteredReservas = _reservas;
+      });
+    } catch (e) {
+      print('Error fetching reservas: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
+
 
   Future<void> _uncheckReserva(int reservaId) async {
     bool? confirm = await showDialog<bool>(
@@ -658,36 +632,21 @@ String _addPadding(String base64String) {
               const SizedBox(width: 8.0),
               Expanded(
                 child: InkWell(
-                  onTap: () => _selectDate(context),
+                  onTap: () => _selectDate(context), // Abrir o DatePicker ao clicar
                   child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Date Range',
+                    decoration: const InputDecoration(
+                      labelText: 'Reservation Date',
                       border: OutlineInputBorder(),
-                      suffixIcon: _startDate != null || _endDate != null
-                          ? Icon(Icons.filter_alt, color: Colors.blue)
-                          : Icon(Icons.calendar_today),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          _startDate == null && _endDate == null
-                              ? 'Select date range'
-                              : '${_startDate != null ? _formatDate(_startDate!) : ''}'
-                                  ' - '
-                                  '${_endDate != null ? _formatDate(_endDate!) : ''}',
+                          _selectedDate == null
+                              ? 'Select a date'
+                              : "${_selectedDate!.toLocal()}".split(' ')[0], // Exibir a data selecionada
                         ),
-                        if (_startDate != null || _endDate != null)
-                          IconButton(
-                            icon: Icon(Icons.clear, size: 18),
-                            onPressed: () {
-                              setState(() {
-                                _startDate = null;
-                                _endDate = null;
-                                _applyFilters();
-                              });
-                            },
-                          ),
+                        const Icon(Icons.calendar_today),
                       ],
                     ),
                   ),
@@ -697,40 +656,34 @@ String _addPadding(String base64String) {
           ),
         ),
           Expanded(
-            child: _isLoading && _reservas.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredReservas.isEmpty
-                    ? const Center(child: Text('No reservations found for selected filters'))
-                    : _isGridView
-                        ? GridView.builder(
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 4,
-                              crossAxisSpacing: 8.0,
-                              mainAxisSpacing: 8.0,
-                              childAspectRatio: 1.5,
-                            ),
-                            itemCount: _filteredReservas.length + (_hasMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index >= _filteredReservas.length) {
-                                return _isLoading
-                                    ? const Center(child: CircularProgressIndicator())
-                                    : Container();
-                              }
-                              return _buildReservaCard(_filteredReservas[index]);
-                            },
-                          )
-                        : ListView.builder(
-                            itemCount: _filteredReservas.length + (_hasMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index >= _filteredReservas.length) {
-                                return _isLoading
-                                    ? const Center(child: CircularProgressIndicator())
-                                    : Container();
-                              }
-                              return _buildReservaCard(_filteredReservas[index]);
-                            },
-                          ),
-          )
+            child: _reservas.isEmpty && !_isLoading
+                ? const Center(child: Text('No reservations found'))
+                : _isGridView
+                    ? GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 8.0,
+                          mainAxisSpacing: 8.0,
+                          childAspectRatio: 1.5,
+                        ),
+                        itemCount: _reservas.length + (_hasMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == _reservas.length) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          return _buildReservaCard(_reservas[index]);
+                        },
+                      )
+                    : ListView.builder(
+                        itemCount: _reservas.length + (_hasMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == _reservas.length) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          return _buildReservaCard(_reservas[index]);
+                        },
+                      ),
+          ),
         ],
       ),
     );

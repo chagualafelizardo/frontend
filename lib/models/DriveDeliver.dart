@@ -7,7 +7,7 @@ class DriveDeliver {
   final double? dropoffLatitude;
   final double? dropoffLongitude;
   final String? locationDescription;
-  final int? reservaID;
+  final int? reservaId;
 
   DriveDeliver({
     this.id,
@@ -18,7 +18,7 @@ class DriveDeliver {
     this.dropoffLatitude,
     this.dropoffLongitude,
     this.locationDescription,
-    this.reservaID,
+    this.reservaId,
   });
 
   factory DriveDeliver.fromJson(Map<String, dynamic> json) {
@@ -31,7 +31,7 @@ class DriveDeliver {
       dropoffLatitude: json['dropoffLatitude']?.toDouble(),
       dropoffLongitude: json['dropoffLongitude']?.toDouble(),
       locationDescription: json['locationDescription'],
-      reservaID: json['reservaID'],
+      reservaId: json['reservaId'],
     );
   }
 
@@ -45,7 +45,7 @@ class DriveDeliver {
       'dropoffLatitude': dropoffLatitude,
       'dropoffLongitude': dropoffLongitude,
       'locationDescription': locationDescription,
-      'reservaID': reservaID,
+      'reservaId': reservaId,
     };
   }
 }

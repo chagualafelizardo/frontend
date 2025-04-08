@@ -1,5 +1,7 @@
+import 'package:app/models/DriveDeliver.dart';
 import 'package:app/models/PagamentoReserva.dart';
 import 'package:app/services/PagamentoReservaService.dart';
+import 'package:app/services/DriveDeliverService.dart';
 import 'package:app/services/UserService.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -24,6 +26,7 @@ class PaymentAndDeliveryLocation extends StatefulWidget {
 class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation> {
   final _formKey = GlobalKey<FormState>();
   final _paymentService = PagamentoReservaService();
+  final _driveDeliverService = DriveDeliverService();
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
@@ -159,32 +162,48 @@ class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation>
   }
 
   try {
-    // Verifica se o campo de observações está vazio e trata adequadamente
     final String? notes = _notesController.text.isNotEmpty 
         ? _notesController.text 
         : null;
 
+    // 1. Salvar o pagamento
     final payment = PagamentoReserva(
       valorTotal: double.parse(_amountController.text),
       data: DateTime.parse(_dateController.text),
-      obs: notes, // Usando a variável tratada
+      obs: notes,
       userId: widget.userId,
       reservaId: widget.reservaId,
     );
-
-    // Debug: Verifique os dados antes de enviar
-    debugPrint('Dados do pagamento: ${payment.toJson()}');
-
+    
     await _paymentService.createPagamentoReserva(payment);
 
+    print('Reserva ID: ${widget.reservaId}');
+
+    // 2. Salvar as coordenadas de entrega
+    final driveDeliver = DriveDeliver(
+      date: DateTime.now(),
+      deliver: 'Yes',
+      pickupLatitude: _pickupLocation?.latitude,
+      pickupLongitude: _pickupLocation?.longitude,
+      dropoffLatitude: _returnLocation?.latitude,
+      dropoffLongitude: _returnLocation?.longitude,
+      locationDescription: notes,
+      reservaId: widget.reservaId, // Este campo deve ser atribuído corretamente
+    );
+
+
+    debugPrint('Dados de entrega: ${driveDeliver.toJson()}'); // Verifique no console
+    
+    await _driveDeliverService.createDriveDeliver(driveDeliver);
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Payment registered successfully!')),
+      const SnackBar(content: Text('Payment and delivery coordinates registered successfully!')),
     );
 
     Navigator.pop(context, true);
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error registering payment: $e')),
+      SnackBar(content: Text('Error: ${e.toString()}')),
     );
     debugPrint('Erro completo: $e');
   }
@@ -196,7 +215,7 @@ Widget build(BuildContext context) {
 
   return Scaffold(
     appBar: AppBar(
-      title: Text('Payment & Location (Res#${widget.reservaId}, User#${widget.userId})'),
+      title: Text('Payment & Location (Reservation id#${widget.reservaId}, User#${widget.userId})'),
       actions: [
         IconButton(
           icon: const Icon(Icons.close),

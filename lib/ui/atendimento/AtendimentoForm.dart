@@ -349,9 +349,7 @@ Future<void> _fetchItensEntrega() async {
     );
   }
 
-  Widget _buildDocumentUploadForm() {
-  final TextEditingController docTypeController = TextEditingController();
-
+Widget _buildDocumentUploadForm() {
   return Column(
     children: [
       const Text(
@@ -359,44 +357,53 @@ Future<void> _fetchItensEntrega() async {
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 16),
-      DropdownButtonFormField<ItensEntrega>(
-        value: _selectedItem,
-        decoration: const InputDecoration(labelText: 'Select Document Type'),
-        items: _itensEntrega.map((item) {
-          return DropdownMenuItem<ItensEntrega>(
-            value: item,
-            child: Text(item.item!),
-          );
-        }).toList(),
-        onChanged: (ItensEntrega? newValue) {
-          setState(() {
-            _selectedItem = newValue;
-          });
-        },
-      ),
-      const SizedBox(height: 16),
-      ElevatedButton(
-        onPressed: () async {
-          FilePickerResult? result = await FilePicker.platform.pickFiles();
+      Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<ItensEntrega>(
+              value: _selectedItem,
+              decoration: const InputDecoration(labelText: 'Select Document Type'),
+              items: _itensEntrega.map((item) {
+                return DropdownMenuItem<ItensEntrega>(
+                  value: item,
+                  child: Text(item.item!),
+                );
+              }).toList(),
+              onChanged: (ItensEntrega? newValue) {
+                setState(() {
+                  _selectedItem = newValue;
+                });
+              },
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: _selectedItem == null
+                ? null
+                : () async {
+                    FilePickerResult? result = await FilePicker.platform.pickFiles();
 
-          if (result != null && result.files.isNotEmpty) {
-            // Use bytes em vez de path
-            Uint8List? bytes = result.files.single.bytes;
-            String fileName = result.files.single.name; // Pegando o nome do arquivo
+                    if (result != null && result.files.isNotEmpty) {
+                      Uint8List? bytes = result.files.single.bytes;
+                      String fileName = result.files.single.name;
 
-            // Aqui pegamos o tipo de documento selecionado
-            String documentType = _selectedItem?.item ?? 'Unknown Type';
+                      String documentType = _selectedItem?.item ?? 'Unknown Type';
 
-            setState(() {
-              _selectedDocuments.add({
-                'type': documentType,  // Tipo de documento selecionado
-                'name': fileName,  // Nome do arquivo
-                'bytes': bytes,
-              });
-            });
-          }
-        },
-        child: const Text('Select Document'),
+                      setState(() {
+                        _selectedDocuments.add({
+                          'type': documentType,
+                          'name': fileName,
+                          'bytes': bytes,
+                        });
+
+                        // Opcional: reseta o tipo selecionado após o upload
+                        _selectedItem = null;
+                      });
+                    }
+                  },
+            child: const Text('Select Document'),
+          ),
+        ],
       ),
       const SizedBox(height: 16),
       Expanded(

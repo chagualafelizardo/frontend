@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:app/models/PagamentoReserva.dart';
 import 'package:app/models/User.dart' as user_model; // Adicione prefixo
 import 'package:app/models/Reserva.dart';
-import 'package:app/models/UserReserva.dart' as user_reserva_model; // Adicione prefixo
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 

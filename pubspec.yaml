@@ -40,8 +40,9 @@ dependencies:
   image: ^4.5.4
   google_maps_flutter: ^2.5.0
   flutter_dotenv: ^5.2.1
-  google_maps_flutter_web: ^0.5.12
-
+  google_maps_flutter_web: ^0.5.5+2
+  geocoding: ^2.1.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

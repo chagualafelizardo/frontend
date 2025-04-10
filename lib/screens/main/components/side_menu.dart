@@ -175,7 +175,7 @@ class SideMenu extends StatelessWidget {
           // GeoLocation
           ExpansionTile(
             leading: Icon(Icons.location_on),
-            title: Text("View Geo Location"),
+            title: Text("Geo Location"),
             childrenPadding: EdgeInsets.only(left: 20), // Ajuste de espaçamento para os subitens
             children: [
               ListTile(

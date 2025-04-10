@@ -17,9 +17,9 @@ import 'package:app/services/VeiculoAddService.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Atendimento.dart';
 import 'package:app/services/AtendimentoService.dart';
-import 'package:app/models/EnviaManutencao.dart'; // Importe o modelo Manutencao
+import 'package:app/models/EnviaManutencao.dart';
 import 'package:app/services/EnviaManutencaoService.dart';
-import 'package:intl/intl.dart'; // Importe o serviço ManutencaoService
+import 'package:intl/intl.dart';
 
 class ManageAlocarMotoristaPage extends StatefulWidget {
   const ManageAlocarMotoristaPage({super.key});
@@ -53,7 +53,7 @@ class _ManageAlocarMotoristaPageState
   DateTime? _startDate;
   DateTime? _endDate;
 
-  // Controladores de pesquisa
+  // Search controllers
   final TextEditingController _destinoController = TextEditingController();
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
@@ -72,44 +72,43 @@ class _ManageAlocarMotoristaPageState
   setState(() => _isLoading = true);
 
   try {
-    // Busca todos os atendimentos
+    // Fetch all service records
     List<Atendimento> atendimentos = await _atendimentoService.fetchAtendimentos();
 
-    // Logando os valores de Atendimento ID e ReserveID, além de buscar o campo 'state'
+    // Logging Service ID, ReserveID and state
     for (var atendimento in atendimentos) {
-      print('Atendimento ID: ${atendimento.id}, ReserveID: ${atendimento.reservaId}, State: ${atendimento.state}');
+      print('Service ID: ${atendimento.id}, ReserveID: ${atendimento.reservaId}, State: ${atendimento.state}');
 
-      // Buscar a reserva associada (com base no reservaId)
+      // Get associated reservation
       var reserva = await _reservaService.getReservaById(atendimento.reservaId!);
 
-      // Buscar o usuário associado à reserva
-      user = reserva.user;  // A instância de User está dentro da Reserva
+      // Get user associated with reservation
+      user = reserva.user;
       if (user != null) {
-        print('User for Atendimento ID ${atendimento.id}: ${user.firstName} ${user.lastName}');
+        print('User for Service ID ${atendimento.id}: ${user.firstName} ${user.lastName}');
       } else {
-        print('User not found for Atendimento ID ${atendimento.id}');
+        print('User not found for Service ID ${atendimento.id}');
       }
 
-      // Buscar o veículo associado à reserva
-      veiculo = reserva.veiculo;  // A instância de Veiculo está dentro da Reserva
+      // Get vehicle associated with reservation
+      veiculo = reserva.veiculo;
       if (veiculo != null) {
-        print('Veiculo for Atendimento ID ${atendimento.id}: ${veiculo.matricula}');
+        print('Vehicle for Service ID ${atendimento.id}: ${veiculo.matricula}');
       } else {
-        print('Veiculo not found for Atendimento ID ${atendimento.id}');
+        print('Vehicle not found for Service ID ${atendimento.id}');
       }
 
-      // Atribuindo o estado da reserva ao atendimento
-      state = reserva.state;  // Aqui estamos assumindo que a reserva tem o campo 'state'
+      // Assign reservation state to service record
+      state = reserva.state;
         }
 
     setState(() {
-      // Atualiza os estados com os atendimentos
       _atendimentos = atendimentos;
       _filteredAtendimentos = atendimentos;
       _isLoading = false;
     });
   } catch (e) {
-    print('Error fetching atendimentos: $e');
+    print('Error fetching service records: $e');
     setState(() => _isLoading = false);
   }
 }
@@ -128,7 +127,7 @@ Future<void> _selectDateRange(BuildContext context) async {
     setState(() {
       _startDate = picked.start;
       _endDate = picked.end;
-      _filterAtendimentos(); // Aplica os filtros imediatamente após seleção
+      _filterAtendimentos();
     });
   }
 }
@@ -138,19 +137,19 @@ Future<void> _showDeleteConfirmationDialog(int atendimentoId) async {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: const Text('Are you sure you want to delete this atendimento?'),
+        title: const Text('Confirm Deletion'),
+        content: const Text('Are you sure you want to delete this service record?'),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();  // Fecha a caixa de diálogo
+              Navigator.of(context).pop();
             },
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
               await _deleteAtendimento(atendimentoId);
-              Navigator.of(context).pop();  // Fecha a caixa de diálogo após a exclusão
+              Navigator.of(context).pop();
             },
             child: const Text('Delete'),
           ),
@@ -162,19 +161,16 @@ Future<void> _showDeleteConfirmationDialog(int atendimentoId) async {
 
 Future<void> _deleteAtendimento(int atendimentoId) async {
   try {
-    // Chame o serviço de exclusão (por exemplo, _atendimentoService.deleteAtendimento)
     await _atendimentoService.deleteAtendimento(atendimentoId);
-
-    // Após a exclusão, recarregar a lista de atendimentos
     await _fetchAtendimentos();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Atendimento deleted successfully')),
+      const SnackBar(content: Text('Service record deleted successfully')),
     );
   } catch (e) {
-    print('Error deleting atendimento: $e');
+    print('Error deleting service record: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Failed to delete atendimento')),
+      const SnackBar(content: Text('Failed to delete service record')),
     );
   }
 }
@@ -189,9 +185,9 @@ void _filterAtendimentos() {
     _filteredAtendimentos = _atendimentos.where((atendimento) {
       final atendimentoDestino = atendimento.destino?.toLowerCase() ?? '';
       final atendimentoState = atendimento.state?.toLowerCase() ?? '';
-      final atendimentoMatricula = veiculo.matricula?.toLowerCase() ?? ''; // Ajuste para o objeto Veiculo
+      final atendimentoMatricula = veiculo.matricula?.toLowerCase() ?? '';
       
-      // Filtro por datas
+      // Date filter
       bool matchesDate = true;
       if (atendimento.dataSaida != null) {
         if (_startDate != null && _endDate != null) {
@@ -272,11 +268,10 @@ void _filterAtendimentos() {
 
   Widget _buildEmptyState() {
     return const Center(
-      child: Text('No atendimentos found'),
+      child: Text('No service records found'),
     );
   }
 
-  // Função para calcular os dias restantes para a devolução
   int _calculateDaysRemaining(DateTime dataChegada) {
     final DateTime now = DateTime.now();
     final Duration difference = dataChegada.difference(now);
@@ -285,7 +280,6 @@ void _filterAtendimentos() {
     return daysRemaining;
   }
 
-  // Widget para o alerta piscando
   Widget _buildBlinkingAlert(String message, Color color) {
     return AnimatedBuilder(
       animation: Listenable.merge([ValueNotifier(true)]),
@@ -324,61 +318,55 @@ Future<void> showAtendimentoDetailsPopup(BuildContext context, int atendimentoId
     );
   } catch (error) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to load atendimento details: $error')),
+      SnackBar(content: Text('Failed to load service details: $error')),
     );
   }
 }
 
 void _showDriverDetailsDialog(int atendimentoId) async {
   try {
-    // Busca alocação do motorista
     UserAtendimentoAllocationService allocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
     UserBase64 user = (await allocationService.getDriverForAtendimento(atendimentoId)) as UserBase64;
 
-    // Valida ID do usuário
     if (user.id == null || user.id == 0) {
-      throw Exception('Motorista não associado a este atendimento');
+      throw Exception('Driver not associated with this service');
     }
 
-    // Imprime o userId
     print('userId: ${user.id}');
 
-    // Busca detalhes do usuário
     UserServiceBase64 userService = UserServiceBase64(dotenv.env['BASE_URL']!);
     UserBase64 motorista = await userService.getUserById(user.id);
 
-    // Exibe diálogo
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Detalhes do Motorista"),
+        title: const Text("Driver Details"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text("ID: ${motorista.id}"),
-            Text("Nome: ${motorista.firstName} ${motorista.lastName}"),
+            Text("Name: ${motorista.firstName} ${motorista.lastName}"),
             Text("Email: ${motorista.email}"),
-            Text("Telefone 1: ${motorista.phone1 ?? 'Não informado'}"),
-            Text("Telefone 2: ${motorista.phone2 ?? 'Não informado'}"),
+            Text("Phone 1: ${motorista.phone1 ?? 'Not provided'}"),
+            Text("Phone 2: ${motorista.phone2 ?? 'Not provided'}"),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Fechar"),
+            child: const Text("Close"),
           ),
         ],
       ),
     );
   } catch (error) {
-    print('Erro ao buscar dados do motorista: $error');
+    print('Error fetching driver details: $error');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Erro ao buscar detalhes do motorista')),
+      const SnackBar(content: Text('Error loading driver details')),
     );
   }
 }
-
 
 void _showUserDetails({
   required int atendimentoId,
@@ -390,15 +378,14 @@ void _showUserDetails({
   final AllocationService allocationService = AllocationService(dotenv.env['BASE_URL']!);
   final UserAtendimentoAllocationService userAtendimentoAllocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
 
-  print("Chamando _showUserDetails..."); // Log para confirmar a chamada
-  List<int> selectedUserIds = []; // Lista para armazenar os IDs dos motoristas selecionados
-  TextEditingController searchController = TextEditingController(); // Controlador para o campo de pesquisa
-  List<UserBase64> filteredUsers = []; // Lista de usuários filtrados
-  List<UserBase64> allUsers = []; // Lista de todos os usuários carregados
+  print("Calling _showUserDetails...");
+  List<int> selectedUserIds = [];
+  TextEditingController searchController = TextEditingController();
+  List<UserBase64> filteredUsers = [];
+  List<UserBase64> allUsers = [];
 
   Future<void> allocateSelectedUsers() async {
   try {
-    // Criar a alocação uma vez antes do loop
     final allocation = Allocation(
       startDate: startDate,
       endDate: endDate,
@@ -407,18 +394,16 @@ void _showUserDetails({
 
     final createdAllocation = await allocationService.createAllocation(allocation);
 
-    // Verifica se a alocação foi criada com sucesso
     if (createdAllocation.id == null) {
       throw Exception('Failed to create allocation');
     }
 
-    // Loop para criar as associações entre User, Atendimento e Allocation
     for (int userId in selectedUserIds) {
       try {
         final userAtendimentoAllocation = UserAtendimentoAllocation(
           userId: userId,
           atendimentoId: atendimentoId,
-          allocationId: createdAllocation.id!, // Usar o ID da alocação criada
+          allocationId: createdAllocation.id!,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -429,7 +414,6 @@ void _showUserDetails({
         print('Association created successfully for User ID: $userId');
       } catch (e) {
         print('Failed to create association for User ID: $userId. Error: $e');
-        // Tratar erro para motorista específico, mas continuar o loop
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to allocate User ID: $userId')),
         );
@@ -468,7 +452,6 @@ showDialog(
               Expanded(
                 child: TabBarView(
                   children: [
-                    // Tab para lista de motoristas
                     FutureBuilder<List<UserBase64>>(
                       future: _fetchUsers(),
                       builder: (context, snapshot) {
@@ -516,7 +499,7 @@ showDialog(
                                         return CheckboxListTile(
                                           title: Text('${user.firstName} ${user.lastName}'),
                                           subtitle: Text('ID: ${user.id}'),
-                                          tileColor: index.isEven ? const Color.fromARGB(255, 12, 12, 12) : const Color.fromARGB(190, 75, 74, 74), // Alternância de cores
+                                          tileColor: index.isEven ? const Color.fromARGB(255, 12, 12, 12) : const Color.fromARGB(190, 75, 74, 74),
                                           value: isSelected,
                                           onChanged: (bool? value) {
                                             setState(() {
@@ -528,7 +511,6 @@ showDialog(
                                             });
                                           },
                                         );
-
                                       },
                                     ),
                                   ),
@@ -539,12 +521,11 @@ showDialog(
                         }
                       },
                     ),
-                    // Tab para detalhes
                     SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Atendimento ID: $atendimentoId'),
+                          Text('Service ID: $atendimentoId'),
                           Text('Destination: $destination'),
                           Text('Plate: $plate'),
                           Text('Start Date: ${startDate.toLocal()}'),
@@ -570,13 +551,13 @@ showDialog(
             }
 
             await allocateSelectedUsers();
-            Navigator.of(context).pop(); // Fecha o diálogo após salvar
+            Navigator.of(context).pop();
           },
           child: const Text('Allocate'),
         ),
         TextButton(
           onPressed: () {
-            Navigator.of(context).pop(); // Fecha o diálogo
+            Navigator.of(context).pop();
           },
           child: const Text('Close'),
         ),
@@ -587,72 +568,65 @@ showDialog(
 }
 
 Future<List<UserBase64>> _fetchUsers() async {
-  print('Iniciando a busca de usuários...');
+  print('Starting user search...');
   try {
-    // Supondo que você tenha um serviço de usuários
     var response = await _userService.getUsers();
-    print('Resposta do serviço de usuários: $response');
+    print('User service response: $response');
 
     if (response is! List) {
-      throw Exception("Dados inválidos: Esperava uma lista de usuários");
+      throw Exception("Invalid data: Expected user list");
     }
 
-    print('A resposta é uma lista de usuários');
+    print('Response is a user list');
 
     List<UserBase64> users = response.map<UserBase64>((userJson) {
       try {
-        print('Convertendo usuário: $userJson');
+        print('Converting user: $userJson');
         return UserBase64.fromJson(userJson);
       } catch (e) {
-        print('Erro ao converter usuário: $e');
-        throw Exception("Erro ao converter um dos usuários.");
+        print('Error converting user: $e');
+        throw Exception("Error converting one of the users.");
       }
     }).toList();
 
-    print('Lista de usuários convertidos: $users');
+    print('Converted user list: $users');
     return users;
   } catch (e) {
-    print('Erro ao buscar usuários: $e');
-    return []; // Retorna uma lista vazia em caso de erro
+    print('Error fetching users: $e');
+    return [];
   }
 }
 
 Future<bool> updateAtendimentoKmFinal(int atendimentoId, double kmFinal, String returnDateText) async {
   try {
     if (atendimentoId == 0) {
-      throw Exception('ID do atendimento é inválido. Não é possível atualizar.');
+      throw Exception('Invalid service ID. Cannot update.');
     }
 
-    // Convertendo a string da data de devolução para DateTime
     DateTime dataDevolucao = DateTime.parse(returnDateText);
 
-    // Chamada ao método de atualização no serviço
     await _atendimentoService.updateKmFinal(
       atendimentoId: atendimentoId,
       kmFinal: kmFinal,
       dataDevolucao: dataDevolucao,
     );
 
-    print('Km final e data de devolução atualizados com sucesso para o atendimento $atendimentoId.');
+    print('Final mileage and return date updated successfully for service $atendimentoId.');
     return true;
   } catch (e) {
-    print('Erro ao atualizar km final e data de devolução: $e');
+    print('Error updating final mileage and return date: $e');
     return false;
   }
 }
 
-
 void _confirmReturn(BuildContext context, int atendimentoid, double kmFinal, String returnDateText) async {
   try {
-    // Aqui você pode fazer uma requisição à API para atualizar a quilometragem no backend
     final response = await updateAtendimentoKmFinal(atendimentoid, kmFinal,returnDateText);
 
     if (response) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vehicle return confirmed successfully!')),
       );
-
-      // Aqui você pode atualizar a UI se necessário
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to confirm vehicle return.')),
@@ -668,7 +642,6 @@ void _confirmReturn(BuildContext context, int atendimentoid, double kmFinal, Str
 void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
   final TextEditingController obsController = TextEditingController();
 
-  // Buscar o ID do veículo a partir da matrícula
   Veiculo? veiculo;
   try {
     veiculo = await _veiculoService.getVeiculoByMatricula(matricula);
@@ -692,10 +665,9 @@ void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
         title: const Text('Send Vehicle for Maintenance'),
         content: SingleChildScrollView(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, // Alinha todos os filhos à esquerda
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Exibir a matrícula da viatura
               Text(
                 'Vehicle License Plate: $matricula',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -724,22 +696,19 @@ void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
           ),
           TextButton(
             onPressed: () async {
-              // Cria o objeto EnviaManutencao
               EnviaManutencao manutencao = EnviaManutencao(
                 obs: obsController.text,
-                veiculoID: veiculo!.id, // Usa o ID do veículo obtido
-                oficinaID: 1, // Defina o ID da oficina se necessário
+                veiculoID: veiculo!.id,
+                oficinaID: 1,
                 atendimentoID: atendimentoID,
               );
 
-              // Log do objeto EnviaManutencao
-              print('EnviaManutencao object created:');
+              print('Maintenance request created:');
               print('obs: ${manutencao.obs}');
               print('veiculoID: ${manutencao.veiculoID}');
               print('oficinaID: ${manutencao.oficinaID}');
               print('atendimentoID: ${manutencao.atendimentoID}');
 
-              // Envia os dados para o backend
               try {
                 EnviaManutencaoService service = EnviaManutencaoService(dotenv.env['BASE_URL']!);
                 await service.createEnviaManutencao(manutencao);
@@ -782,7 +751,7 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
             controller: kmFinalController,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              labelText: 'Km Final',
+              labelText: 'Final Mileage',
               border: OutlineInputBorder(),
             ),
           ),
@@ -815,7 +784,7 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.of(context).pop(); // Fecha o diálogo sem salvar
+            Navigator.of(context).pop();
           },
           child: const Text('Cancel'),
         ),
@@ -846,10 +815,9 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
               return;
             }
 
-            // Chama a função para atualizar a quilometragem e a data de devolução
             _confirmReturn(context, atendimento.id!, kmFinal, returnDateText);
 
-            Navigator.of(context).pop(); // Fecha o popup
+            Navigator.of(context).pop();
           },
           child: const Text('Confirm'),
         ),
@@ -859,40 +827,38 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
 );
 }
 
-
-
 Widget _buildAtendimentoCard(Atendimento atendimento) {
   final DateTime? dataChegada = atendimento.dataChegada;
 
-  String daysRemainingMessage = 'Data de chegada não disponível';
+  String daysRemainingMessage = 'Return date not available';
   Color circleColor = Colors.grey;
   bool isBlinking = false;
 
   if (dataChegada != null) {
     int daysRemaining = _calculateDaysRemaining(dataChegada);
     if (daysRemaining < 0) {
-      daysRemainingMessage = 'Devolução já realizada';
+      daysRemainingMessage = 'Return already completed';
     } else if (daysRemaining <= 5) {
-      daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
+      daysRemainingMessage = '$daysRemaining days until return';
       circleColor = Colors.red;
       isBlinking = true;
     } else if (daysRemaining <= 10) {
-      daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
+      daysRemainingMessage = '$daysRemaining days until return';
       circleColor = Colors.orange;
     } else if (daysRemaining <= 15) {
-      daysRemainingMessage = 'Faltam $daysRemaining dias para a devolução';
+      daysRemainingMessage = '$daysRemaining days until return';
       circleColor = Colors.yellow;
     } else {
-      daysRemainingMessage = 'Faltam mais de 15 dias para a devolução';
+      daysRemainingMessage = 'More than 15 days until return';
       circleColor = Colors.green;
     }
   }
 
   return Card(
   margin: const EdgeInsets.all(8.0),
-  elevation: 4, // Sombra do card
+  elevation: 4,
   shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(12), // Bordas arredondadas
+    borderRadius: BorderRadius.circular(12),
   ),
   child: ExpansionTile(
     title: Row(
@@ -907,14 +873,15 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Atendimento ID: ${atendimento.id}',
+                'Service nr. ${atendimento.id}'
+                ', of reservation nr. ${atendimento.reservaId!}' ,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                'Destino: ${atendimento.destino ?? 'N/A'}',
+                'Destination: ${atendimento.destino ?? 'N/A'}',
                 style: const TextStyle(fontSize: 14),
               ),
             ],
@@ -926,32 +893,27 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Usuário: ${user.firstName ?? 'N/A'}',
+          'User: ${user.firstName ?? 'N/A'}',
           style: const TextStyle(fontSize: 14),
         ),
-        // Adicionando os botões aqui
         Padding(
           padding: const EdgeInsets.only(top: 8.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.end, // Alinha os botões à direita
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // Botão para ver o motorista alocado
               IconButton(
                 icon: const Icon(Icons.person_2, color: Color.fromARGB(255, 45, 116, 163)),
                 onPressed: () {
                   _atendimentoService.fetchReserveIdAndUserDetails(atendimento.reservaId!);
-
                 },
-                tooltip: 'Ver Motorista Alocado',
+                tooltip: 'View Assigned Driver',
               ),
-              // Botão para ver os detalhes dos itens
               IconButton(
                 icon: const Icon(Icons.list, color: Colors.teal),
                 onPressed: () async {
-                  // _showItemDetails(atendimento.itens);
                   await showAtendimentoDetailsPopup(context, atendimento.id!);
                 },
-                tooltip: 'View Itens Details',
+                tooltip: 'View Items Details',
               ),
             ],
           ),
@@ -979,30 +941,30 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
           children: [
             _buildDetailRow(
               Icons.date_range,
-              'Data de Saída:',
+              'Departure Date:',
               atendimento.dataSaida != null
                   ? DateFormat('dd/MM/yyyy').format(atendimento.dataSaida!)
                   : 'N/A',
             ),
             _buildDetailRow(
               Icons.date_range,
-              'Data da Provável Devolução:',
+              'Expected Return Date:',
               atendimento.dataChegada != null
                   ? DateFormat('dd/MM/yyyy').format(atendimento.dataChegada!)
                   : 'N/A',
             ),
             _buildDetailRow(
               Icons.date_range,
-              'Data da Devolução:',
+              'Actual Return Date:',
               atendimento.dataDevolucao != null
                   ? DateFormat('dd/MM/yyyy').format(atendimento.dataDevolucao!)
                   : 'N/A',
             ),
-            _buildDetailRow(Icons.speed, 'Km Inicial:', atendimento.kmInicial?.toString() ?? 'N/A'),
-            _buildDetailRow(Icons.speed, 'Km Final:', atendimento.kmFinal?.toString() ?? 'N/A'),
-            _buildDetailRow(Icons.person, 'Usuário:', user.firstName ?? 'N/A'),
-            _buildDetailRow(Icons.directions_car, 'Veículo:', veiculo.matricula ?? 'N/A'),
-            _buildDetailRow(Icons.flag, 'Estado:', state ?? 'N/A'),
+            _buildDetailRow(Icons.speed, 'Initial Mileage:', atendimento.kmInicial?.toString() ?? 'N/A'),
+            _buildDetailRow(Icons.speed, 'Final Mileage:', atendimento.kmFinal?.toString() ?? 'N/A'),
+            _buildDetailRow(Icons.person, 'User:', user.firstName ?? 'N/A'),
+            _buildDetailRow(Icons.directions_car, 'Vehicle:', veiculo.matricula ?? 'N/A'),
+            _buildDetailRow(Icons.flag, 'State:', state ?? 'N/A'),
           ],
         ),
       ),
@@ -1022,27 +984,27 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
                     startDate: atendimento.dataSaida!,
                     endDate: atendimento.dataChegada!,
                   );
-                  print('Detalhes do usuário exibidos com sucesso.');
+                  print('User details displayed successfully.');
                 } catch (error) {
-                  print('Erro ao buscar detalhes do usuário: $error');
+                  print('Error loading user details: $error');
                 }
               },
-              tooltip: 'Alocar Motorista',
+              tooltip: 'Assign Driver',
             ),
             IconButton(
               icon: const Icon(Icons.check_circle, color: Colors.green),
               onPressed: () => _showConfirmReturnDialog(atendimento),
-              tooltip: 'Confirmar Devolução',
+              tooltip: 'Confirm Return',
             ),
             IconButton(
               icon: const Icon(Icons.car_crash, color: Colors.orange),
               onPressed: () => _showSendToMaintenanceDialog(atendimento.id!, veiculo.matricula),
-              tooltip: 'Enviar para Manutenção',
+              tooltip: 'Send for Maintenance',
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () => _showDeleteConfirmationDialog(atendimento.id!),
-              tooltip: 'Excluir Atendimento',
+              tooltip: 'Delete Service',
             ),
           ],
         ),
@@ -1052,7 +1014,6 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
 );
 }
 
-// Método auxiliar para construir uma linha de detalhe
 Widget _buildDetailRow(IconData icon, String label, String value) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -1069,13 +1030,11 @@ Widget _buildDetailRow(IconData icon, String label, String value) {
   );
 }
 
-
-
   @override
   Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      title: const Text('Vehicles in service and allocated'),
+      title: const Text('Vehicles in Service and Allocations'),
       actions: [
         IconButton(
           icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
@@ -1091,14 +1050,14 @@ Widget _buildDetailRow(IconData icon, String label, String value) {
       children: [
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: _buildSearchFields(), // Método para a barra de pesquisa
+          child: _buildSearchFields(),
         ),
         Expanded(
           child: _isLoading
-              ? _buildLoadingIndicator() // Indicador de carregamento
+              ? _buildLoadingIndicator()
               : _filteredAtendimentos.isEmpty
-                  ? _buildEmptyState() // Estado vazio
-                  : _isGridView // Alternando entre ListView e GridView
+                  ? _buildEmptyState()
+                  : _isGridView
                       ? GridView.builder(
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1126,12 +1085,10 @@ Widget _buildDetailRow(IconData icon, String label, String value) {
 }
 }
 
-
 class VeiculoService {
   Future<Veiculo> getVeiculoByMatricula(String matricula) async {
     final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/veiculo/matricula/$matricula'));
     if (response.statusCode == 200) {
-      // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
       return Veiculo.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to load vehicle');
@@ -1144,7 +1101,6 @@ class UserServiceDetails {
     final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/$userId'));
 
     if (response.statusCode == 200) {
-      // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
       return User.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to load vehicle');

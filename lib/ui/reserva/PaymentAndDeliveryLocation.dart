@@ -10,6 +10,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+
 class PaymentAndDeliveryLocation extends StatefulWidget {
   final int reservaId;
   final int userId;
@@ -85,7 +86,7 @@ class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation>
         Marker(
           markerId: const MarkerId('pickup_location'),
           position: location,
-          infoWindow: const InfoWindow(title: 'Local de Recolha'),
+          infoWindow: const InfoWindow(title: 'Pickup Location'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
         ),
       );
@@ -100,111 +101,109 @@ class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation>
         Marker(
           markerId: const MarkerId('return_location'),
           position: location,
-          infoWindow: const InfoWindow(title: 'Local de Entrega'),
+          infoWindow: const InfoWindow(title: 'Return Location'),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         ),
       );
     });
   }
 
-Future<void> _searchAndMovePickupLocation(String query) async {
-  if (query.isEmpty) return;
-  
-  setState(() => _isPickupSearching = true);
-  
-  try {
-    // Primeiro tenta com a API de geocoding
+  Future<void> _searchAndMovePickupLocation(String query) async {
+    if (query.isEmpty) return;
+    
+    setState(() => _isPickupSearching = true);
+    
     try {
-      List<Location> locations = await locationFromAddress(query);
+      // First try with geocoding API
+      try {
+        List<Location> locations = await locationFromAddress(query);
 
-      if (locations.isNotEmpty) {
-        _updatePickupLocation(
-          LatLng(locations.first.latitude, locations.first.longitude),
-          query,
-        );
-        return;
+        if (locations.isNotEmpty) {
+          _updatePickupLocation(
+            LatLng(locations.first.latitude, locations.first.longitude),
+            query,
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('Geocoding failed: $e');
       }
-    } catch (e) {
-      debugPrint('Geocoding falhou: $e');
-    }
 
-    // Se não encontrou, tenta com a Places API
-    await _searchWithPlacesAPI(query, isPickup: true);
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erro: ${e.toString()}')),
-    );
-    debugPrint('Erro na busca: $e');
-  } finally {
-    setState(() => _isPickupSearching = false);
+      // If not found, try with Places API
+      await _searchWithPlacesAPI(query, isPickup: true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+      debugPrint('Search error: $e');
+    } finally {
+      setState(() => _isPickupSearching = false);
+    }
   }
-}
 
   Future<void> _searchWithPlacesAPI(String query, {required bool isPickup}) async {
-  final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
-  if (apiKey == null) {
-    debugPrint('Erro: Chave da API não encontrada');
-    throw Exception('Chave da API do Google Maps não configurada');
-  }
-  
-    try {
-      final url = Uri.parse('${dotenv.env['BASE_URL_GOOGLE_MAPS_PLACES']}/pagamentoreserva/buscarlocalizacao?query=$query&key=$apiKey&language=pt&region=mz',
-      // final url = Uri.parse('https://maps.googleapis.com/maps/api/place/textsearch/json?query=Namaacha&key=AIzaSyDw8qHIN9go7Do3aouyR9343opJ33ZdDb0&language=pt&region=mz'
-    );
-
-    debugPrint('URL da pesquisa: $url');
-    
-    final response = await http.get(url);
-    final data = jsonDecode(response.body);
-    
-    debugPrint('Resposta da API: $data');
-    
-    if (data['status'] == 'OK' && data['results'].isNotEmpty) {
-      final result = data['results'][0];
-      final lat = result['geometry']['location']['lat'];
-      final lng = result['geometry']['location']['lng'];
-      final address = result['formatted_address'] ?? query;
-      
-      final latLng = LatLng(lat, lng);
-      if (isPickup) {
-        _updatePickupLocation(latLng, address);
-      } else {
-        _updateReturnLocation(latLng, address);
-      }
-    } else {
-      debugPrint('Status da API: ${data['status']}');
-      throw Exception(data['error_message'] ?? 'Nenhum resultado encontrado');
+    final apiKey = dotenv.env['GOOGLE_MAPS_API_KEY'];
+    if (apiKey == null) {
+      debugPrint('Error: API key not found');
+      throw Exception('Google Maps API key not configured');
     }
-  } catch (e) {
-    debugPrint('Erro na chamada da API: $e');
-    rethrow;
+    
+    try {
+      final url = Uri.parse('${dotenv.env['BASE_URL_GOOGLE_MAPS_PLACES']}/pagamentoreserva/buscarlocalizacao?query=$query&key=$apiKey&language=pt&region=mz');
+
+      debugPrint('Search URL: $url');
+    
+      final response = await http.get(url);
+      final data = jsonDecode(response.body);
+    
+      debugPrint('API response: $data');
+    
+      if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+        final result = data['results'][0];
+        final lat = result['geometry']['location']['lat'];
+        final lng = result['geometry']['location']['lng'];
+        final address = result['formatted_address'] ?? query;
+      
+        final latLng = LatLng(lat, lng);
+        if (isPickup) {
+          _updatePickupLocation(latLng, address);
+        } else {
+          _updateReturnLocation(latLng, address);
+        }
+      } else {
+        debugPrint('API status: ${data['status']}');
+        throw Exception(data['error_message'] ?? 'No results found');
+      }
+    } catch (e) {
+      debugPrint('API call error: $e');
+      rethrow;
+    }
   }
-}
 
   void _updatePickupLocation(LatLng latLng, String address) {
-  debugPrint('Atualizando localização de recolha para: $latLng');
-  debugPrint('Endereço: $address');
+    debugPrint('Updating pickup location to: $latLng');
+    debugPrint('Address: $address');
   
-  setState(() {
-    _pickupLocation = latLng;
-    _pickupMarkers.clear();
-    _pickupMarkers.add(Marker(
-      markerId: const MarkerId('pickup_location'),
-      position: latLng,
-      infoWindow: InfoWindow(
-        title: 'Local de Recolha',
-        snippet: address,
-      ),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-    ));
-  });
+    setState(() {
+      _pickupLocation = latLng;
+      _pickupMarkers.clear();
+      _pickupMarkers.add(Marker(
+        markerId: const MarkerId('pickup_location'),
+        position: latLng,
+        infoWindow: InfoWindow(
+          title: 'Pickup Location',
+          snippet: address,
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      ));
+    });
   
-  _pickupMapController?.animateCamera(
-    CameraUpdate.newLatLngZoom(latLng, 15),
-  );
+    _pickupMapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(latLng, 15),
+    );
   
-  debugPrint('Marcador adicionado e câmera movida');
-}
+    debugPrint('Marker added and camera moved');
+  }
 
   Future<void> _searchAndMoveReturnLocation(String query) async {
     if (query.isEmpty) return;
@@ -225,9 +224,9 @@ Future<void> _searchAndMovePickupLocation(String query) async {
       await _searchWithPlacesAPI(query, isPickup: false);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Local não encontrado. Tente outra pesquisa.')),
+        SnackBar(content: Text('Location not found. Try another search.')),
       );
-      debugPrint('Erro na busca: $e');
+      debugPrint('Search error: $e');
     } finally {
       setState(() => _isReturnSearching = false);
     }
@@ -241,7 +240,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
         markerId: const MarkerId('return_location'),
         position: latLng,
         infoWindow: InfoWindow(
-          title: 'Local de Entrega',
+          title: 'Return Location',
           snippet: address,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
@@ -257,7 +256,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
     if (!_formKey.currentState!.validate()) return;
     if (_pickupLocation == null || _returnLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione os locais de recolha e entrega')),
+        const SnackBar(content: Text('Please select pickup and return locations')),
       );
       return;
     }
@@ -291,15 +290,15 @@ Future<void> _searchAndMovePickupLocation(String query) async {
       await _driveDeliverService.createDriveDeliver(driveDeliver);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pagamento e locais registados com sucesso!')),
+        const SnackBar(content: Text('Payment and locations registered successfully!')),
       );
 
       Navigator.pop(context, true);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: ${e.toString()}')),
+        SnackBar(content: Text('Error: ${e.toString()}')),
       );
-      debugPrint('Erro completo: $e');
+      debugPrint('Full error: $e');
     }
   }
 
@@ -309,7 +308,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pagamento e Locais (Reserva#${widget.reservaId})'),
+        title: Text('Payment and Locations (Reservation#${widget.reservaId})'),
         actions: [
           IconButton(
             icon: const Icon(Icons.close),
@@ -326,14 +325,14 @@ Future<void> _searchAndMovePickupLocation(String query) async {
               TextFormField(
                 controller: _amountController,
                 decoration: const InputDecoration(
-                  labelText: 'Valor Total',
+                  labelText: 'Total Amount',
                   prefixText: 'MZN ',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Insira o valor';
-                  if (double.tryParse(value) == null) return 'Valor inválido';
+                  if (value == null || value.isEmpty) return 'Enter the amount';
+                  if (double.tryParse(value) == null) return 'Invalid amount';
                   return null;
                 },
               ),
@@ -341,7 +340,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
               TextFormField(
                 controller: _dateController,
                 decoration: const InputDecoration(
-                  labelText: 'Data de Pagamento',
+                  labelText: 'Payment Date',
                   border: OutlineInputBorder(),
                   suffixIcon: Icon(Icons.calendar_today),
                 ),
@@ -360,7 +359,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Selecione os locais de recolha e entrega:',
+                'Select pickup and return locations:',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
@@ -371,12 +370,12 @@ Future<void> _searchAndMovePickupLocation(String query) async {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Local de Recolha:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('Pickup Location:', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _pickupSearchController,
                           decoration: InputDecoration(
-                            hintText: 'Pesquisar (ex: Hotel, Restaurante, etc.)',
+                            hintText: 'Search (e.g. Hotel, Restaurant, etc.)',
                             prefixIcon: const Icon(Icons.search),
                             suffixIcon: _isPickupSearching 
                                 ? const CircularProgressIndicator()
@@ -415,7 +414,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
                                             ? Theme.of(context).primaryColor 
                                             : Colors.grey,
                                       ),
-                                      tooltip: 'Mapa normal',
+                                      tooltip: 'Normal map',
                                     ),
                                     const SizedBox(height: 8),
                                     FloatingActionButton.small(
@@ -428,7 +427,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
                                             ? Theme.of(context).primaryColor 
                                             : Colors.grey,
                                       ),
-                                      tooltip: 'Mapa híbrido',
+                                      tooltip: 'Hybrid map',
                                     ),
                                   ],
                                 ),
@@ -452,12 +451,12 @@ Future<void> _searchAndMovePickupLocation(String query) async {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Local de Entrega:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('Return Location:', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _returnSearchController,
                           decoration: InputDecoration(
-                            hintText: 'Pesquisar (ex: Shopping, Aeroporto, etc.)',
+                            hintText: 'Search (e.g. Mall, Airport, etc.)',
                             prefixIcon: const Icon(Icons.search),
                             suffixIcon: _isReturnSearching 
                                 ? const CircularProgressIndicator()
@@ -496,7 +495,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
                                             ? Theme.of(context).primaryColor 
                                             : Colors.grey,
                                       ),
-                                      tooltip: 'Mapa normal',
+                                      tooltip: 'Normal map',
                                     ),
                                     const SizedBox(height: 8),
                                     FloatingActionButton.small(
@@ -509,7 +508,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
                                             ? Theme.of(context).primaryColor 
                                             : Colors.grey,
                                       ),
-                                      tooltip: 'Mapa híbrido',
+                                      tooltip: 'Hybrid map',
                                     ),
                                   ],
                                 ),
@@ -534,7 +533,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(
-                  labelText: 'Observações (opcional)',
+                  labelText: 'Notes (optional)',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
@@ -542,7 +541,7 @@ Future<void> _searchAndMovePickupLocation(String query) async {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _submitPayment,
-                child: const Text('Registrar Pagamento'),
+                child: const Text('Register Payment'),
               ),
             ],
           ),

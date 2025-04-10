@@ -118,7 +118,8 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
           userID: _selectedUsers[veiculo]!.id,
           clientID: _selectedUsers[veiculo]!.id,
           veiculoID: veiculo.id,
-          state: 'Not Confirmed',
+          state: 'Not Confirmed', 
+          inService: 'No',
         );
 
         ScaffoldMessenger.of(context).showSnackBar(

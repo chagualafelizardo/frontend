@@ -10,6 +10,7 @@ class Reserva {
   String destination;
   int numberOfDays;
   String state;
+  String inService; // ✅ Novo campo
 
   // Informações do usuário
   int userId; // Adicione o campo userId
@@ -24,6 +25,7 @@ class Reserva {
     required this.date,
     required this.destination,
     required this.numberOfDays,
+    required this.inService, // ✅ Adicione no construtor
     required this.state,
     required this.userId, // Adicione o campo userId no construtor
     required this.clientId, // Adicione o campo userId no construtor
@@ -59,6 +61,7 @@ class Reserva {
         'date': date.toIso8601String(),
         'destination': destination,
         'number_of_days': numberOfDays,
+        'inService': inService, // ✅ Novo campo no JSON
         'state': state,
         'userID': userId, // Adicione o campo userId no JSON
         'clientID': clientId, // Adicione o campo userId no JSON
@@ -73,6 +76,7 @@ class Reserva {
       date: DateTime.parse(json['date'] ?? DateTime.now().toIso8601String()),
       destination: json['destination'] ?? '',
       numberOfDays: json['number_of_days'] ?? 0,
+      inService: json['inService'] ?? 'No', // ✅ Novo campo
       state: json['state'] ?? '',
       userId: json['userID'] ?? 0, // Adicione o campo userId no fromJson
       clientId: json['clientID'] ?? 0, // Adicione o campo userId no fromJson

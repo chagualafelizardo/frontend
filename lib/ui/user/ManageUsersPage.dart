@@ -410,8 +410,9 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                       IconButton(
                                         icon: const Icon(Icons.visibility),
                                         onPressed: () {
-                                          _viewUser(user);
+                                          _viewUser(user); // Certifique-se que 'user' está disponível neste contexto
                                         },
+                                        tooltip: 'View user details', // Adicione um tooltip para melhor UX
                                       ),
                                     ],
                                   ),

@@ -43,7 +43,10 @@ dependencies:
   flutter_dotenv: ^5.2.1
   google_maps_flutter_web: ^0.5.5+2
   geocoding: ^2.1.0
+  mailer: ^6.0.0
+  flutter_mailer: ^3.0.0
   
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -223,7 +223,7 @@ class ReservationsTab extends StatelessWidget {
                   Navigator.of(path.context as BuildContext).push(
                     MaterialPageRoute(
                       builder: (context) => PaymentAndDeliveryLocation(
-                        reservaId: reservation.id!,
+                        reservaId: reservation.id,
                         userId: reservation.userId,
                       ),
                     ),

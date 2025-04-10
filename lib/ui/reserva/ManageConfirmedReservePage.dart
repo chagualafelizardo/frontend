@@ -91,7 +91,7 @@ Future<void> _selectDate(BuildContext context) async {
   }
 }
 
-  Future<void> _fetchReservas() async {
+Future<void> _fetchReservas() async {
   if (_isLoading || !_hasMore) return;
 
   setState(() {
@@ -108,8 +108,9 @@ Future<void> _selectDate(BuildContext context) async {
       if (reservas.isEmpty) {
         _hasMore = false;
       } else {
-        // Filtra apenas reservas confirmadas
-        _reservas.addAll(reservas.where((reserva) => reserva.state == 'Confirmed'));
+        // Filtra apenas reservas confirmadas E com inService == 'No'
+        _reservas.addAll(reservas.where((reserva) => 
+          reserva.state == 'Confirmed' && reserva.inService == 'No'));
         
         // Ordena por ID decrescente
         _reservas.sort((a, b) => b.id.compareTo(a.id));
@@ -126,7 +127,6 @@ Future<void> _selectDate(BuildContext context) async {
     });
   }
 }
-
 
   String _formatDate(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
@@ -162,6 +162,11 @@ Future<void> _selectDate(BuildContext context) async {
 
         // Chamada ao serviço
         await _reservaService.unconfirmReserva(reservaId.toString());
+        // Actualizar a flag inService para  "No", indicando que a reserva ainda na foi adiante
+        await _reservaService.updateInService(
+          reservaId: reservaId,
+          inService: 'No',
+        );
 
         print("Reservation confirmed successfully on the server.");
 
@@ -187,7 +192,7 @@ Future<void> _selectDate(BuildContext context) async {
     }
   }
 
-    // Use o alias para referenciar a classe Veiculo corretamente
+ // Use o alias para referenciar a classe Veiculo corretamente
  void _showVeiculoDetailsDialog(Veiculo veiculo) async {
   // Instância do serviço para buscar as imagens
   final veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);

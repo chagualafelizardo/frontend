@@ -289,7 +289,7 @@ class _SignupPageState extends State<SignupPage> {
   Widget _buildDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedUserType.isEmpty ? null : _selectedUserType,
-      style: const TextStyle(color: Color.fromARGB(221, 247, 245, 245)),
+      style: const TextStyle(color: Color.fromARGB(221, 15, 15, 15)),
       decoration: InputDecoration(
         hintText: "Select user role",
         hintStyle: TextStyle(color: Colors.grey[600]),

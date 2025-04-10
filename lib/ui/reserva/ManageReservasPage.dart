@@ -1002,9 +1002,11 @@ Widget build(BuildContext context) {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Destination: ${reserva.destination}'),
-                                Text('Number of Days: ${reserva.numberOfDays}'),
-                                Text('State: ${reserva.state}'),
+                                    Text('Client: ${reserva.user.firstName}'),
+                                    Text('Destination: ${reserva.destination}'),
+                                    Text('Reserve Date: ${reserva.date}'),
+                                    Text('Number of Days: ${reserva.numberOfDays}'),
+                                    Text('State: ${reserva.state}'),
                                 const SizedBox(height: 8.0),
                                 Row(
                                   children: [

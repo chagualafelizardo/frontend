@@ -39,4 +39,15 @@ class VeiculoService {
     }
   }
 
+  Future<List<Veiculo>> fetchVehiclesByState(String state) async {
+    final response = await http.get(Uri.parse('$baseUrl/veiculo/state/$state'));
+
+    if (response.statusCode == 200) {
+      List<dynamic> body = jsonDecode(response.body);
+      return body.map((json) => Veiculo.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load vehicles by state');
+    }
+  }
+
 }

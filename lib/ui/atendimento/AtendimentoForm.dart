@@ -1,6 +1,4 @@
-// Adicionei o pacote para visualização de documentos
-import 'dart:convert';
-
+import 'package:intl/intl.dart';
 import 'package:app/models/AtendimentoDocument.dart';
 import 'package:app/models/AtendimentoItem.dart';
 import 'package:app/models/ItensEntrega.dart';
@@ -16,8 +14,11 @@ import 'package:app/models/Item.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart'; // Para manipular bytes
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:app/models/DriveDeliver.dart';
+import 'package:app/services/DriveDeliverService.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server/gmail.dart';
 
 class AtendimentoForm extends StatefulWidget {
   final Atendimento atendimento;
@@ -36,16 +37,15 @@ class AtendimentoForm extends StatefulWidget {
   _AtendimentoFormState createState() => _AtendimentoFormState();
 }
 
-class _AtendimentoFormState extends State<AtendimentoForm>
-    with SingleTickerProviderStateMixin {
+class _AtendimentoFormState extends State<AtendimentoForm> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   DateTime? _dataSaida;
   DateTime? _dataChegada;
   String? _destino;
   double? _kmInicial;
   double? _kmFinal;
-  final AtendimentoService _atendimentoService =
-      AtendimentoService(dotenv.env['BASE_URL']!);
+
+  final AtendimentoService _atendimentoService = AtendimentoService(dotenv.env['BASE_URL']!);
   final ItemService _itemService = ItemService(dotenv.env['BASE_URL']!);
 
   List<Item> _items = [];
@@ -56,6 +56,15 @@ class _AtendimentoFormState extends State<AtendimentoForm>
   List<ItensEntrega> _itensEntrega = [];
   ItensEntrega? _selectedItem;
 
+  late DriveDeliverService _driveDeliverService;
+  DriveDeliver? _driveDeliver;
+  bool _isLoadingDriveDeliver = true;
+  LatLng? _pickupLocation;
+  LatLng? _dropoffLocation;
+
+  MapType _pickupMapType = MapType.normal;
+  MapType _dropoffMapType = MapType.normal;
+
   // Lista para armazenar documentos selecionados
   final List<Map<String, dynamic>> _selectedDocuments = [];
 
@@ -64,9 +73,95 @@ class _AtendimentoFormState extends State<AtendimentoForm>
     super.initState();
     _destino = widget.reserva.destination;
     _tabController = TabController(length: 3, vsync: this);
+    _driveDeliverService = DriveDeliverService();
     _fetchItems();
-     _fetchItensEntrega();
+    _fetchItensEntrega();
+    _fetchDriveDeliver();
   }
+
+
+  // Metodo para enviar email
+  void sendEmail() async {
+  final smtpServer = gmail('felizardo.chaguala@gmail.com', 'Imediatamente'); // Seu e-mail e senha
+
+  final message = Message()
+    ..from = Address('fchaguala@yahoo.com.br', 'Felizardo Chaguala') // Remetente
+    ..recipients.add('fchaguala@yahoo.com.br') // Destinatário
+    ..subject = 'Confirmação do pagamento da Reserva' // Assunto
+    ..text = 'Confirmação do pagamento da Reserva e entrega da viatura ao cliente!'; // Corpo do e-mail
+
+  try {
+    final sendReport = await send(message, smtpServer);
+    print('E-mail enviado: ' + sendReport.toString());
+  } catch (e) {
+    print('Erro ao enviar: $e');
+  }
+}
+
+  Future<DateTime?> _selectDateTime(
+      BuildContext context, DateTime? initialDate) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    
+    if (pickedDate == null) return null;
+
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialDate ?? DateTime.now()),
+    );
+
+    if (pickedTime == null) return pickedDate;
+
+    return DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+  }
+  // Adicione este método para buscar os dados de DriveDeliver
+  Future<void> _fetchDriveDeliver() async {
+    try {
+      List<DriveDeliver> driveDelivers = await _driveDeliverService.getAllDriveDelivers();
+      DriveDeliver? deliverForReserva = driveDelivers.firstWhere(
+        (deliver) => deliver.reservaId == widget.reserva.id,
+      );
+
+      if (deliverForReserva != null) {
+        setState(() {
+          _driveDeliver = deliverForReserva;
+          if (deliverForReserva.pickupLatitude != null && deliverForReserva.pickupLongitude != null) {
+            _pickupLocation = LatLng(
+              deliverForReserva.pickupLatitude!,
+              deliverForReserva.pickupLongitude!,
+            );
+          }
+          if (deliverForReserva.dropoffLatitude != null && deliverForReserva.dropoffLongitude != null) {
+            _dropoffLocation = LatLng(
+              deliverForReserva.dropoffLatitude!,
+              deliverForReserva.dropoffLongitude!,
+            );
+          }
+          _isLoadingDriveDeliver = false;
+        });
+      } else {
+        setState(() {
+          _isLoadingDriveDeliver = false;
+        });
+      }
+    } catch (error) {
+      debugPrint('Error fetching drive deliver: $error');
+      setState(() {
+        _isLoadingDriveDeliver = false;
+      });
+    }
+  }
+
 
   void _fetchItems() async {
     try {
@@ -158,11 +253,11 @@ Future<void> _fetchItensEntrega() async {
               TabBar(
                 controller: _tabController,
                 tabs: const [
-                  Tab(text: 'Item Checklist'), // 1ª Aba: Item Checklist
-                  Tab(text: 'Document Upload'), // 2ª Aba: Document Upload
+                  Tab(text: 'Service Registration'), // 1ª Aba: Item Checklist
+                  Tab(text: 'Item Checklist'), // 2ª Aba: Document Upload
                   Tab(
                       text:
-                          'Service Registration'), // 3ª Aba: Service Registration
+                          'Document Upload'), // 3ª Aba: Service Registration
                 ],
               ),
               const SizedBox(height: 16),
@@ -172,9 +267,9 @@ Future<void> _fetchItensEntrega() async {
                   children: [
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
-                        : _buildItemChecklist(), // 1ª Aba: Item Checklist
-                    _buildDocumentUploadForm(), // 2ª Aba: Document Upload
-                    _buildAtendimentoForm(), // 3ª Aba: Service Registration
+                        : _buildAtendimentoForm(), // 1ª Aba: Service Registration
+                      _buildItemChecklist(), // 2ª Aba: Item Checklist
+                    _buildDocumentUploadForm(), // 3ª Aba: Document Upload
                   ],
                 ),
               ),
@@ -185,8 +280,10 @@ Future<void> _fetchItensEntrega() async {
     );
   }
 
+
   Widget _buildAtendimentoForm() {
-    return Form(
+  return SingleChildScrollView(
+    child: Form(
       key: _formKey,
       child: Column(
         children: [
@@ -195,68 +292,82 @@ Future<void> _fetchItensEntrega() async {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
+          
+          // Informações da reserva
           Align(
             alignment: Alignment.centerLeft,
             child: Text('Reserva: ${widget.reserva.id}',
                 style: const TextStyle(fontSize: 16)),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
             child: Text('Numbers of days: ${widget.reserva.numberOfDays}',
                 style: const TextStyle(fontSize: 16)),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
             child: Text('Destination: ${widget.reserva.destination}',
                 style: const TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 16),
+          
+          // Mapas de localização
+          Container(
+            alignment: Alignment.centerLeft,
+            child: const Text(
+              'Delivery Locations',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          _isLoadingDriveDeliver
+              ? const CircularProgressIndicator()
+              : _buildLocationMaps(),
+          const SizedBox(height: 16),
+          
+          // Campos do formulário
           _buildKmField('Initial Kilometers',
               (value) => _kmInicial = double.tryParse(value!)),
-          // _buildKmField(
-          //     'Final Kilometers', (value) => _kmFinal = int.tryParse(value!)),
-          _buildDateField('Departure Date', _dataSaida,
-              (pickedDate) => _dataSaida = pickedDate),
-          _buildDateField('Arrival Date', _dataChegada,
-              (pickedDate) => _dataChegada = pickedDate),
           const SizedBox(height: 16),
+          _buildDateField('Departure Date & Time', _dataSaida,
+              (pickedDateTime) => _dataSaida = pickedDateTime),
+          const SizedBox(height: 16),
+          _buildDateField('Arrival Date & Time', _dataChegada,
+              (pickedDateTime) => _dataChegada = pickedDateTime),
+          const SizedBox(height: 16),
+          
+          // Botão de submissão
           ElevatedButton(
             onPressed: () {
               if (_formKey.currentState!.validate()) {
                 _formKey.currentState!.save();
 
-                // Preparar a lista de documents / imagens para Adicionar
-                List<Map<String, dynamic>> selectedDocuments =
-                    _selectedDocuments
-                        .where((doc) =>
-                            doc['type'] != null && doc['bytes'] != null)
-                        .map((doc) => {
-                              'itemDescription':
-                                  doc['type'], // Campo da descrição
-                              'image': doc['bytes'], // Bytes da imagem
-                            })
-                        .toList();
+                List<Map<String, dynamic>> selectedDocuments = _selectedDocuments
+                    .where((doc) => doc['type'] != null && doc['bytes'] != null)
+                    .map((doc) => {
+                          'itemDescription': doc['type'],
+                          'image': doc['bytes'],
+                        })
+                    .toList();
 
-                // Preparar a lista de Itens selecionados para Adicionar
                 List<String> selectedItems = _itemChecklist.entries
                     .where((entry) => entry.value)
                     .map((entry) => entry.key)
                     .toList();
 
-                // Adicionar na tabela principal Atendimento
                 _atendimentoService
                     .addCompleteAtendimento(
-                  DateTime
-                      .now(), // Se necessário, substitua por um valor apropriado
+                  DateTime.now(),
                   dataSaida: _dataSaida!,
                   dataChegada: _dataChegada!,
                   destino: _destino!,
                   kmInicial: _kmInicial!,
                   reserveID: widget.reserva.id,
                   checkedItems: selectedItems,
-                  documents: selectedDocuments, // Adiciona os documentos
+                  documents: selectedDocuments,
                 )
                     .then((_) async {
                   widget.onProcessStart(
@@ -266,7 +377,9 @@ Future<void> _fetchItensEntrega() async {
                     _kmInicial!,
                   );
 
-                  // Exibindo uma mensagem de sucesso
+                // Chamar o metodo para enviar os e-mail
+                sendEmail();
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text(
@@ -280,15 +393,192 @@ Future<void> _fetchItensEntrega() async {
                     SnackBar(content: Text('Failed to start process: $error')),
                   );
                 });
-                /**/
               }
             },
             child: const Text('Start Process'),
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+@override
+Widget _buildLocationMaps() {
+  return Column(
+    children: [
+      const SizedBox(height: 8),
+      Container(
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 73, 72, 72),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          _driveDeliver?.locationDescription ?? 'No location description',
+          style: const TextStyle(fontSize: 14),
+        ),
+      ),
+      const SizedBox(height: 16),
+      SizedBox(
+        height: 300,
+        child: Row(
+          children: [
+            // Mapa de Pickup
+            Expanded(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Pickup Location',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _pickupMapType == MapType.normal
+                                ? Icons.satellite
+                                : Icons.map,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _pickupMapType = _pickupMapType == MapType.normal
+                                  ? MapType.hybrid
+                                  : MapType.normal;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _pickupLocation == null
+                          ? Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Text('No pickup location data'),
+                              ),
+                            )
+                          : GoogleMap(
+                              mapType: _pickupMapType,
+                              initialCameraPosition: CameraPosition(
+                                target: _pickupLocation!,
+                                zoom: 15,
+                              ),
+                              markers: {
+                                Marker(
+                                  markerId: const MarkerId('pickup'),
+                                  position: _pickupLocation!,
+                                  infoWindow: InfoWindow(
+                                    title: 'Pickup Location',
+                                    snippet: _driveDeliver?.deliver ?? '',
+                                  ),
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueBlue,
+                                  ),
+                                ),
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Mapa de Dropoff
+            Expanded(
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Dropoff Location',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            _dropoffMapType == MapType.normal
+                                ? Icons.satellite
+                                : Icons.map,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _dropoffMapType = _dropoffMapType == MapType.normal
+                                  ? MapType.hybrid
+                                  : MapType.normal;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _dropoffLocation == null
+                          ? Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Text('No dropoff location data'),
+                              ),
+                            )
+                          : GoogleMap(
+                              mapType: _dropoffMapType,
+                              initialCameraPosition: CameraPosition(
+                                target: _dropoffLocation!,
+                                zoom: 15,
+                              ),
+                              markers: {
+                                Marker(
+                                  markerId: const MarkerId('dropoff'),
+                                  position: _dropoffLocation!,
+                                  infoWindow: InfoWindow(
+                                    title: 'Dropoff Location',
+                                    snippet: _driveDeliver?.deliver ?? '',
+                                  ),
+                                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueRed,
+                                  ),
+                                ),
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildKmField(String label, Function(String?) onSaved) {
     return TextFormField(
@@ -299,27 +589,26 @@ Future<void> _fetchItensEntrega() async {
     );
   }
 
-  Widget _buildDateField(
-      String label, DateTime? selectedDate, Function(DateTime) onDateSelected) {
+  Widget _buildDateField(String label, DateTime? selectedDate, Function(DateTime) onDateSelected) {
     return TextFormField(
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: const Icon(Icons.calendar_today),
+      ),
       readOnly: true,
       controller: TextEditingController(
         text: selectedDate == null
             ? ''
-            : DateFormat('yyyy-MM-dd').format(selectedDate),
+            : DateFormat('yyyy-MM-dd HH:mm').format(selectedDate),
       ),
       onTap: () async {
-        DateTime? pickedDate = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
-        );
-        setState(() {
-          onDateSelected(pickedDate!);
-        });
-            },
+        DateTime? pickedDateTime = await _selectDateTime(context, selectedDate);
+        if (pickedDateTime != null) {
+          setState(() {
+            onDateSelected(pickedDateTime);
+          });
+        }
+      },
       validator: (value) => value!.isEmpty ? 'Please select the $label' : null,
     );
   }

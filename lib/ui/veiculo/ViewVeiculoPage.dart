@@ -109,11 +109,11 @@ class _ViewVeiculoPageState extends State<ViewVeiculoPage> {
                 ),
               ),
               const Divider(height: 20, thickness: 1, color: Colors.grey),
-              // Título para as imagens adicionais
+              // Título para as Additional Images
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  'Imagens Adicionais',
+                  'Additional Images',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -122,7 +122,7 @@ class _ViewVeiculoPageState extends State<ViewVeiculoPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Lista de imagens adicionais
+              // Lista de Additional Images
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _additionalImageUrls.isEmpty

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/Item.dart';
 import 'package:app/services/ItemService.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server/gmail.dart';
 
 class AddNewItemForm extends StatefulWidget {
   final ItemService itemService;
@@ -42,6 +44,9 @@ class _AddNewItemFormState extends State<AddNewItemForm> {
       await widget.itemService.addItem(newItem);
       widget.onItemAdded();
 
+      // Chamar o metodo para enviar e-mail 
+      sendEmail();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Item "${newItem.item}" added successfully!')),
       );
@@ -55,6 +60,24 @@ class _AddNewItemFormState extends State<AddNewItemForm> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  // Metodo para enviar email
+  void sendEmail() async {
+    final smtpServer = gmail('felizardo.chaguala@gmail.com', 'Imediatamente');
+
+    final message = Message()
+      ..from = Address('fchaguala@yahoo.com.br', 'Felizardo Chaguala')
+      ..recipients.add('fchaguala@yahoo.com.br')
+      ..subject = 'Adicionando novos Itens'
+      ..text = 'added successfully!';
+
+    try {
+      final sendReport = await send(message, smtpServer);
+      print('E-mail enviado: ' + sendReport.toString());
+    } catch (e) {
+      print('Erro ao enviar: $e');
     }
   }
 

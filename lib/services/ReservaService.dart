@@ -14,6 +14,7 @@ class ReservaService {
     required String destination,
     required int numberOfDays,
     required int userID,
+    required String inService, // ✅ Adicione no construtor
     required int clientID,
     required int veiculoID,
     required String state,
@@ -26,6 +27,7 @@ class ReservaService {
         'date': date.toIso8601String(),
         'destination': destination,
         'number_of_days': numberOfDays,
+        'inService': inService,
         'userID': userID,
         'clientID': clientID,
         'veiculoID': veiculoID,
@@ -50,22 +52,22 @@ class ReservaService {
   }
 
   Map<DateTime, int> agruparReservasPorData(List<Reserva> reservas) {
-  Map<DateTime, int> reservasPorData = {};
+    Map<DateTime, int> reservasPorData = {};
 
-  for (var reserva in reservas) {
-    // Normaliza a data para remover a hora, mantendo apenas o dia
-    DateTime data = DateTime(reserva.date.year, reserva.date.month, reserva.date.day);
+    for (var reserva in reservas) {
+      // Normaliza a data para remover a hora, mantendo apenas o dia
+      DateTime data = DateTime(reserva.date.year, reserva.date.month, reserva.date.day);
 
-    // Incrementa a contagem de reservas para essa data
-    if (reservasPorData.containsKey(data)) {
-      reservasPorData[data] = reservasPorData[data]! + 1;
-    } else {
-      reservasPorData[data] = 1;
+      // Incrementa a contagem de reservas para essa data
+      if (reservasPorData.containsKey(data)) {
+        reservasPorData[data] = reservasPorData[data]! + 1;
+      } else {
+        reservasPorData[data] = 1;
+      }
     }
-  }
 
-  return reservasPorData;
-}
+    return reservasPorData;
+  }
 
   Future<void> confirmReserva(String reservaId) async {
     final url =
@@ -118,6 +120,8 @@ class ReservaService {
       throw Exception('Failed to confirm reserva');
     }
   }
+
+ 
 
   // Obter uma reserva pelo ID
   Future<Reserva> getReservaById(int id) async {
@@ -184,8 +188,36 @@ class ReservaService {
       }),
     );
 
-    if (response.statusCode != 201) {
-      throw Exception('Failed to start rental process');
+      if (response.statusCode != 201) {
+        throw Exception('Failed to start rental process');
+      }
     }
+
+  Future<void> updateInService({
+        required int reservaId,
+        required String inService,
+      }) async {
+        final url = Uri.parse('$baseUrl/reserva/$reservaId/inService');
+        final body = jsonEncode({'inService': inService});
+
+        try {
+          final response = await http.put(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          );
+
+          if (response.statusCode == 200) {
+            print('inService updated successfully');
+          } else {
+            print('Failed to update inService. Status code: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            throw Exception('Failed to update inService');
+          }
+        } catch (e) {
+          print('Exception occurred in updateInService: $e');
+          throw Exception('Failed to update inService');
+        }
   }
 }
+

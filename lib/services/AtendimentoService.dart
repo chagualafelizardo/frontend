@@ -236,17 +236,54 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
     }
   }
 
-  Future<void> addCompleteAtendimento(
-    DateTime dateTime, {
-    required DateTime dataSaida,
-    required DateTime dataChegada,
-    required String destino,
-    required double kmInicial,
-    required int reserveID,
-    required List<String> checkedItems,
-    required List<Map<String, dynamic>> documents,
-  }) async {
-    final atendimento = Atendimento(
+  Future<void> updateInService({
+        required int reservaId,
+        required String inService,
+      }) async {
+        final url = Uri.parse('$baseUrl/reserva/$reservaId/inService');
+        final body = jsonEncode({'inService': inService});
+
+        try {
+          final response = await http.put(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          );
+
+          if (response.statusCode == 200) {
+            print('inService updated successfully');
+          } else {
+            print('Failed to update inService. Status code: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            throw Exception('Failed to update inService');
+          }
+        } catch (e) {
+          print('Exception occurred in updateInService: $e');
+          throw Exception('Failed to update inService');
+        }
+}
+
+ Future<void> addCompleteAtendimento(
+  DateTime dateTime, {
+  required DateTime dataSaida,
+  required DateTime dataChegada,
+  required String destino,
+  required double kmInicial,
+  required int reserveID,
+  required List<String> checkedItems,
+  required List<Map<String, dynamic>> documents,
+}) async {
+  final atendimento = Atendimento(
+    dataSaida: dataSaida,
+    dataChegada: dataChegada,
+    destino: destino,
+    kmInicial: kmInicial,
+    reserveID: reserveID,
+  );
+
+  try {
+    final createdAtendimento = await addAtendimento(
+      atendimento,
       dataSaida: dataSaida,
       dataChegada: dataChegada,
       destino: destino,
@@ -254,35 +291,34 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
       reserveID: reserveID,
     );
 
-    try {
-      final createdAtendimento = await addAtendimento(
-        atendimento,
-        dataSaida: dataSaida,
-        dataChegada: dataChegada,
-        destino: destino,
-        kmInicial: kmInicial,
-        reserveID: reserveID,
-      );
-
-      if (createdAtendimento.id == null) {
-        print('Falha ao criar atendimento. ID inválido.');
-        throw Exception('Falha ao criar atendimento. ID inválido.');
-      }
-
-      if (checkedItems.isNotEmpty) {
-        await addAtendimentoItems(checkedItems, createdAtendimento.id!);
-      }
-
-      if (documents.isNotEmpty) {
-        await addAtendimentoDocuments(documents, createdAtendimento.id!);
-      }
-
-      print("Atendimento completo adicionado com sucesso!");
-    } catch (e) {
-      print("Erro ao adicionar atendimento completo: $e");
-      throw Exception('Erro ao adicionar atendimento completo');
+    if (createdAtendimento.id == null) {
+      print('Falha ao criar atendimento. ID inválido.');
+      throw Exception('Falha ao criar atendimento. ID inválido.');
     }
+
+    if (checkedItems.isNotEmpty) {
+      await addAtendimentoItems(checkedItems, createdAtendimento.id!);
+    }
+
+    if (documents.isNotEmpty) {
+      await addAtendimentoDocuments(documents, createdAtendimento.id!);
+    }
+
+    /*
+     ✅ Atualiza a tag inService após salvar o atendimento completo 
+     Actualizar a flag inService para  "No", indicando que a reserva ainda na foi adiante
+    */
+    await updateInService(
+      reservaId: reserveID,
+      inService: "Yes", // ou "Sim", dependendo do que você armazena no backend
+    );
+
+    print("Atendimento completo adicionado com sucesso!");
+  } catch (e) {
+    print("Erro ao adicionar atendimento completo: $e");
+    throw Exception('Erro ao adicionar atendimento completo');
   }
+}
 
   Future<void> updateAtendimento({
     required int atendimentoId,

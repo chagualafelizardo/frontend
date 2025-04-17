@@ -132,29 +132,23 @@ class _AtendimentoFormState extends State<AtendimentoForm> with SingleTickerProv
         (deliver) => deliver.reservaId == widget.reserva.id,
       );
 
-      if (deliverForReserva != null) {
-        setState(() {
-          _driveDeliver = deliverForReserva;
-          if (deliverForReserva.pickupLatitude != null && deliverForReserva.pickupLongitude != null) {
-            _pickupLocation = LatLng(
-              deliverForReserva.pickupLatitude!,
-              deliverForReserva.pickupLongitude!,
-            );
-          }
-          if (deliverForReserva.dropoffLatitude != null && deliverForReserva.dropoffLongitude != null) {
-            _dropoffLocation = LatLng(
-              deliverForReserva.dropoffLatitude!,
-              deliverForReserva.dropoffLongitude!,
-            );
-          }
-          _isLoadingDriveDeliver = false;
-        });
-      } else {
-        setState(() {
-          _isLoadingDriveDeliver = false;
-        });
-      }
-    } catch (error) {
+      setState(() {
+        _driveDeliver = deliverForReserva;
+        if (deliverForReserva.pickupLatitude != null && deliverForReserva.pickupLongitude != null) {
+          _pickupLocation = LatLng(
+            deliverForReserva.pickupLatitude!,
+            deliverForReserva.pickupLongitude!,
+          );
+        }
+        if (deliverForReserva.dropoffLatitude != null && deliverForReserva.dropoffLongitude != null) {
+          _dropoffLocation = LatLng(
+            deliverForReserva.dropoffLatitude!,
+            deliverForReserva.dropoffLongitude!,
+          );
+        }
+        _isLoadingDriveDeliver = false;
+      });
+        } catch (error) {
       debugPrint('Error fetching drive deliver: $error');
       setState(() {
         _isLoadingDriveDeliver = false;

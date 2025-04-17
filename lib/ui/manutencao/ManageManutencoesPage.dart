@@ -389,7 +389,7 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
 
   // Função para retornar a cor com base no índice da linha
   Color _getRowColor(int index) {
-    return index % 2 == 0 ? const Color.fromARGB(255, 14, 13, 13) : const Color.fromARGB(255, 58, 58, 58)!;
+    return index % 2 == 0 ? const Color.fromARGB(255, 14, 13, 13) : const Color.fromARGB(255, 58, 58, 58);
   }
 
   @override
@@ -433,8 +433,8 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
                           final index = entry.key;
                           final manutencao = entry.value;
                           return DataRow(
-                            color: MaterialStateProperty.resolveWith<Color>(
-                              (Set<MaterialState> states) {
+                            color: WidgetStateProperty.resolveWith<Color>(
+                              (Set<WidgetState> states) {
                                 return _getRowColor(index);
                               },
                             ),
@@ -498,9 +498,9 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
                           final index = entry.key;
                           final detalhe = entry.value;
                           return DataRow(
-                            color: MaterialStateProperty.resolveWith<Color?>(
-                              (Set<MaterialState> states) {
-                                return index.isEven ? const Color.fromARGB(255, 12, 12, 12) : const Color.fromARGB(255, 58, 58, 58)!; // Alternando cores
+                            color: WidgetStateProperty.resolveWith<Color?>(
+                              (Set<WidgetState> states) {
+                                return index.isEven ? const Color.fromARGB(255, 12, 12, 12) : const Color.fromARGB(255, 58, 58, 58); // Alternando cores
                               },
                             ),
                             cells: [

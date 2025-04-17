@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:app/models/User.dart';
-import 'package:app/models/UserRenderImgBase64.dart';
 import 'package:http/http.dart' as http;
 import '../models/UserAtendimentoAllocation.dart'; // Atualize o caminho conforme necessário
 

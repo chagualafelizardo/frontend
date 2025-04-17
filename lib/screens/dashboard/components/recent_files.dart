@@ -1,5 +1,4 @@
-import 'package:app/models/atendimento.dart'; // Importe o modelo Atendimento
-import 'package:app/services/AtendimentoService.dart';
+// Importe o modelo Atendimento
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../constants.dart';

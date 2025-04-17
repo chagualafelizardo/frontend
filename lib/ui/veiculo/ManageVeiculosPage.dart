@@ -1,5 +1,7 @@
+import 'package:app/services/VehicleHistoryRentService.dart';
 import 'package:app/ui/veiculo/AddNewVeiculoForm.dart' as add_form;
 import 'package:app/ui/veiculo/EditVeiculoForm.dart' as edit_form;
+import 'package:app/ui/veiculo/ManageVehiclePriceRentHistoryPage.dart';
 import 'package:flutter/material.dart';
 import 'package:app/services/VeiculoService.dart';
 import 'package:app/services/VeiculoAddService.dart';
@@ -54,6 +56,77 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
   }
 }
 
+Future<void> _deleteVeiculo(int veiculoId) async {
+  try {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    // Call service to delete vehicle
+    bool deleted = await veiculoService.deleteVeiculo(veiculoId);
+
+    // Close loading dialog
+    Navigator.of(context).pop();
+
+    if (deleted) {
+      // Refresh vehicle list after deletion
+      await _fetchVeiculos();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vehicle deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  } catch (e) {
+    // Close loading dialog on error
+    Navigator.of(context).pop();
+    
+    // Show error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error deleting vehicle: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    print('Error deleting vehicle: $e');
+  }
+}
+
+void _confirmDeleteVeiculo(Veiculo veiculo) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text('Are you sure you want to delete the vehicle ${veiculo.marca} ${veiculo.modelo} (${veiculo.matricula})?'),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+            },
+          ),
+          TextButton(
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            onPressed: () async {
+              Navigator.of(context).pop(); // Close dialog
+              await _deleteVeiculo(veiculo.id); // Execute deletion
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   // Função para filtrar os veículos pela matrícula
   void _filterVehicles(String query) {
@@ -82,6 +155,27 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
       },
     );
   }
+
+  void _openVeiculoPriceHistoryDialog(Veiculo veiculo) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return Dialog(
+        insetPadding: EdgeInsets.all(20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 600,
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: ManageVehicleHistoryPage(
+            service: VehicleHistoryRentService(dotenv.env['BASE_URL']!),
+            veiculoId: veiculo.id, // Passe o ID do veículo
+          ),
+        ),
+      );
+    },
+  );
+}
 
   void _openEditVeiculoDialog(Veiculo veiculo) {
     VeiculoAdd veiculoAdd = VeiculoAdd(
@@ -119,10 +213,6 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
         );
       },
     );
-  }
-
-  void _confirmDeleteVeiculo(Veiculo veiculo) {
-    // Lógica para confirmar a exclusão
   }
 
   void _viewVeiculoDetails(Veiculo veiculo) {
@@ -261,18 +351,77 @@ Widget build(BuildContext context) {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_red_eye),
-                                    onPressed: () => _viewVeiculoDetails(veiculo),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () => _openEditVeiculoDialog(veiculo),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () => _confirmDeleteVeiculo(veiculo),
-                                  ),
+                                  Row(
+                                    children: [
+                                      // View Button
+                                      Tooltip(
+                                        message: 'View vehicle details',
+                                        child: Material(
+                                          color: Colors.blueAccent,
+                                          shape: const CircleBorder(),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50),
+                                            onTap: () => _viewVeiculoDetails(veiculo),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.remove_red_eye, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8), // Add spacing between buttons
+                                      
+                                      // Edit Button
+                                      Tooltip(
+                                        message: 'Edit vehicle',
+                                        child: Material(
+                                          color: Colors.orangeAccent,
+                                          shape: const CircleBorder(),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50),
+                                            onTap: () => _openEditVeiculoDialog(veiculo),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.edit, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8), // Add spacing between buttons
+                                      Tooltip(
+                                          message: 'Add vehicle price rent history',
+                                          child: Material(
+                                            color: Colors.orangeAccent,
+                                            shape: const CircleBorder(),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(50),
+                                              onTap: () => _openVeiculoPriceHistoryDialog(veiculo),
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.list_alt, color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                      ),
+                                      const SizedBox(width: 8), // Add spacing between buttons
+                                      // Delete Button
+                                      Tooltip(
+                                        message: 'Delete vehicle',
+                                        child: Material(
+                                          color: Colors.redAccent,
+                                          shape: const CircleBorder(),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50),
+                                            onTap: () => _confirmDeleteVeiculo(veiculo),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.delete, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
                                 ],
                               ),
                             ],
@@ -339,21 +488,77 @@ Widget build(BuildContext context) {
                               DataCell(Text(veiculo.state)),
                               DataCell(
                                 Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_red_eye),
-                                      onPressed: () => _viewVeiculoDetails(veiculo),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.edit),
-                                      onPressed: () => _openEditVeiculoDialog(veiculo),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      onPressed: () => _confirmDeleteVeiculo(veiculo),
-                                    ),
-                                  ],
-                                ),
+                                    children: [
+                                      // View Button
+                                      Tooltip(
+                                        message: 'View vehicle details',
+                                        child: Material(
+                                          color: Colors.blueAccent,
+                                          shape: const CircleBorder(),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50),
+                                            onTap: () => _viewVeiculoDetails(veiculo),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.remove_red_eye, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8), // Add spacing between buttons
+                                      // Edit Button
+                                      Tooltip(
+                                        message: 'Edit vehicle',
+                                        child: Material(
+                                          color: Colors.orangeAccent,
+                                          shape: const CircleBorder(),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50),
+                                            onTap: () => _openEditVeiculoDialog(veiculo),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.edit, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      const SizedBox(width: 8), // Add spacing between buttons
+                                      Tooltip(
+                                          message: 'Add vehicle price rent history',
+                                          child: Material(
+                                            color: Colors.orangeAccent,
+                                            shape: const CircleBorder(),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(50),
+                                              onTap: () => _openVeiculoPriceHistoryDialog(veiculo),
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.list_alt, color: Colors.white),
+                                              ),
+                                            ),
+                                          ),
+                                      ),
+
+                                      const SizedBox(width: 8), // Add spacing between buttons
+                                      // Delete Button
+                                      Tooltip(
+                                        message: 'Delete vehicle',
+                                        child: Material(
+                                          color: Colors.redAccent,
+                                          shape: const CircleBorder(),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(50),
+                                            onTap: () => _confirmDeleteVeiculo(veiculo),
+                                            child: const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Icon(Icons.delete, color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
                               ),
                             ],
                           );

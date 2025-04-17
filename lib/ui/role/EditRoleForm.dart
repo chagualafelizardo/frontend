@@ -29,7 +29,7 @@ class _EditRoleFormState extends State<EditRoleForm> {
   Future<void> _updateRole() async {
     if (_formKey.currentState!.validate()) {
       Role? updatedRole = await widget.roleService
-          .updateRole(widget.role.id!, _nameController.text);
+          .updateRole(widget.role.id, _nameController.text);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content:

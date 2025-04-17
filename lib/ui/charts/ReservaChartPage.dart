@@ -1,5 +1,3 @@
-import 'package:app/ui/charts/ReservaBarChart.dart';
-import 'package:app/ui/charts/ReservaLineChart.dart';
 import 'package:app/ui/charts/ReservaPieChart.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/Reserva.dart';

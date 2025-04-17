@@ -8,15 +8,16 @@ import 'package:app/services/VeiculoService.dart';
 import 'package:app/models/Reserva.dart' as reserva_model;
 import 'package:app/models/Veiculo.dart' as veiculo_model;
 import 'package:app/services/DriveDeliverService.dart';
+import 'package:app/models/DriveDeliver.dart';
 
-class MapSelectionScreen extends StatefulWidget {
-  const MapSelectionScreen({Key? key}) : super(key: key);
+class ManageDashboardService extends StatefulWidget {
+  const ManageDashboardService({Key? key}) : super(key: key);
 
   @override
-  State<MapSelectionScreen> createState() => _MapSelectionScreenState();
+  State<ManageDashboardService> createState() => _MapSelectionScreenState();
 }
 
-class _MapSelectionScreenState extends State<MapSelectionScreen> 
+class _MapSelectionScreenState extends State<ManageDashboardService> 
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
@@ -39,14 +40,15 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this); // Certifique-se que é 4
+    _tabController = TabController(length: 5, vsync: this); // Mude para 5
     _tabController.addListener(() {
       if (!mounted) return;
-      if (_tabController.index == 3) { // Verifique se é o índice correto para o mapa
+      if (_tabController.index == 4) { // Agora o mapa é a 5ª aba (índice 4)
         _loadDriveDeliverData();
       }
     });
   }
+
 
   @override
   void dispose() {
@@ -91,6 +93,16 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
 
   Future<List<reserva_model.Reserva>> _fetchReservas() async {
     return await _reservaService.getReservas();
+  }
+
+  // Adicione este método para buscar as rotas ativas
+  Future<List<DriveDeliver>> _fetchActiveRoutes() async {
+    try {
+      final deliveries = await _driveDeliverService.getAllDriveDelivers();
+      return deliveries.where((delivery) => delivery.deliver == '"Yes"').toList();
+    } catch (e) {
+      throw Exception('Failed to load active routes: $e');
+    }
   }
 
   Future<void> _loadDriveDeliverData() async {
@@ -177,14 +189,15 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vehicle Map & Services'),
+        title: const Text('Manage vehicle in service and map view'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Available Vehicles'),
+            Tab(text: 'Occupied Vehicles'), 
             Tab(text: 'Vehicles In Service'),
-            Tab(text: 'Occupied Vehicles'), // Nova aba
             Tab(text: 'Delivery Map'),
+            Tab(text: 'Active Routes'), // Nova aba
           ],
         ),
       ),
@@ -193,9 +206,10 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
         physics: const NeverScrollableScrollPhysics(), // Desabilita o swipe entre tabs
         children: [
           _buildAvailableVehiclesTab(),
-          _buildVehiclesInServiceTab(),
           _buildOccupiedVehiclesTab(), // Nova aba
+          _buildVehiclesInServiceTab(),
           _buildDeliveryMapTab(),
+          _buildActiveRoutesTab(), // Nova aba
         ],
       ),
     );
@@ -359,6 +373,68 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
     );
   }
 
+ // Adicione este widget para a nova aba de rotas ativas
+  Widget _buildActiveRoutesTab() {
+    return FutureBuilder<List<DriveDeliver>>(
+      future: _fetchActiveRoutes(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No active routes found'));
+        }
+
+        final activeRoutes = snapshot.data!;
+
+        return ListView.builder(
+          itemCount: activeRoutes.length,
+          itemBuilder: (context, index) {
+            final route = activeRoutes[index];
+            return Card(
+              margin: const EdgeInsets.all(8),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Route ID: ${route.id}', style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    )),
+                    const SizedBox(height: 8),
+                    Text('Reserva ID: ${route.reservaId}'),
+                    Text('Vehicle: ${route.reservaId}'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.green, size: 16),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text('Pickup: ${route.locationDescription}')),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.red, size: 16),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text('Dropoff: ${route.locationDescription ?? 'Not specified'}')),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Status: ${route.deliver}'),
+                    Text('Date: ${route.date?.toLocal().toString().split(' ')[0] ?? 'N/A'}'),
+                    if (route.deliver != null) Text('Driver: ${route.deliver}'),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showVehicleDetails(veiculo_model.Veiculo vehicle) {
     showDialog(
       context: context,
@@ -475,9 +551,9 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
     return Card(
       margin: const EdgeInsets.all(8),
       child: ListTile(
-        leading: reserva.veiculo?.imagemBase64 != null && reserva.veiculo!.imagemBase64!.isNotEmpty
+        leading: reserva.veiculo.imagemBase64 != null && reserva.veiculo.imagemBase64!.isNotEmpty
             ? Image.memory(
-                base64Decode(reserva.veiculo!.imagemBase64!),
+                base64Decode(reserva.veiculo.imagemBase64!),
                 width: 60,
                 height: 60,
                 fit: BoxFit.cover,
@@ -520,20 +596,18 @@ class _MapSelectionScreenState extends State<MapSelectionScreen>
   }
 
   void _showReservationDetails(reserva_model.Reserva reserva) {
-    if (reserva.veiculo != null) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: SizedBox(
-            width: 800,
-            height: 800,
-            // child: ViewVeiculoPage(veiculo: reserva.veiculo!),
-          ),
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SizedBox(
+          width: 800,
+          height: 800,
+          // child: ViewVeiculoPage(veiculo: reserva.veiculo!),
         ),
-      );
+      ),
+    );
     }
-  }
 
   Widget _buildDeliveryMapTab() {
     return Stack(

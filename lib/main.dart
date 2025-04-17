@@ -9,7 +9,7 @@ import 'package:app/ui/login/login_page.dart';
 import 'package:app/ui/manutencao/ManageManutencoesPage.dart';
 import 'package:app/ui/pagamento/ManageConfirmPaymentPage.dart';
 import 'package:app/ui/pagamento/ManagePaymentPage.dart';
-import 'package:app/ui/reserva/MapSelectionScreen.dart';
+import 'package:app/ui/reserva/ManageDashboardService.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
           '/atendimentoChart': (context) => AtendimentoChartPage(),
           '/reservationsAndService': (context) => ReservationsAndServiceChartPage(),
           '/pagamentoreserva':(context) => ManageReservationPaymentPage(),
-          '/geolocation': (context) => MapSelectionScreen(),
+          '/geolocation': (context) => ManageDashboardService(),
           '/settings': (context) => LoginPage(),
         },
         onGenerateRoute: (settings) {

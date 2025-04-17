@@ -47,15 +47,15 @@ class SideMenu extends StatelessWidget {
             onTap: () => onMenuSelected('/dashboard'),
           ),
           Divider(), // Separador entre os itens
-
-          // Users
+          
           ListTile(
-            leading: Icon(Icons.people),
-            title: Text("Users"),
-            onTap: () => onMenuSelected('/users'),
+            leading: Icon(Icons.location_on),
+            title: Text("Manage vehicle in service"),
+            onTap: () => onMenuSelected('/geolocation'),
           ),
-
-          // Vehicle (Raiz com submenus)
+         Divider(), //
+ 
+           // Vehicle (Raiz com submenus)
           ExpansionTile(
             leading: Icon(Icons.directions_car),
             title: Text("Vehicle"),
@@ -173,17 +173,25 @@ class SideMenu extends StatelessWidget {
           ),
 
           // GeoLocation
-          ExpansionTile(
-            leading: Icon(Icons.location_on),
-            title: Text("Geo Location"),
-            childrenPadding: EdgeInsets.only(left: 20), // Ajuste de espaçamento para os subitens
-            children: [
-              ListTile(
-                leading: Icon(Icons.person),
-                title: Text("View maps"),
-                onTap: () => onMenuSelected('/geolocation'),
-              ),
-            ],
+          // ExpansionTile(
+          //   leading: Icon(Icons.location_on),
+          //   title: Text("Geo Location"),
+          //   childrenPadding: EdgeInsets.only(left: 20), // Ajuste de espaçamento para os subitens
+          //   children: [
+          //     ListTile(
+          //       leading: Icon(Icons.person),
+          //       title: Text("View maps"),
+          //       onTap: () => onMenuSelected('/geolocation'),
+          //     ),
+          //   ],
+          // ),
+         Divider(), //
+
+          // Users
+          ListTile(
+            leading: Icon(Icons.people),
+            title: Text("Users"),
+            onTap: () => onMenuSelected('/users'),
           ),
 
           Divider(), // Separador entre os itens

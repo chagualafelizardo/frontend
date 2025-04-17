@@ -659,8 +659,8 @@ final PagamentoService pagamentoService = PagamentoService(dotenv.env['BASE_URL'
                   : const Color.fromARGB(255, 83, 83, 83);
 
               return DataRow(
-                color: MaterialStateProperty.resolveWith<Color>(
-                  (Set<MaterialState> states) {
+                color: WidgetStateProperty.resolveWith<Color>(
+                  (Set<WidgetState> states) {
                     return color; // Aplica a cor de fundo
                   },
                 ),
@@ -791,8 +791,8 @@ class DetalhesPagamento extends StatelessWidget {
                                   : const Color.fromARGB(255, 83, 83, 83); // Cor para linhas ímpares
 
                               return DataRow(
-                                color: MaterialStateProperty.resolveWith<Color>(
-                                  (Set<MaterialState> states) {
+                                color: WidgetStateProperty.resolveWith<Color>(
+                                  (Set<WidgetState> states) {
                                     return color; // Aplica a cor de fundo
                                   },
                                 ),

@@ -47,10 +47,6 @@ class AtendimentoService {
 
       print('Response from user service: $responseUser');
 
-      if (responseUser == null) {
-        throw Exception('User not found for clientId: $clientId');
-      }
-
       final User user = User.fromJson(responseUser as Map<String, dynamic>);
       print('User details: ${user.toJson()}');
 

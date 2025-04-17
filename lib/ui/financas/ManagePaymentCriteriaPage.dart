@@ -55,7 +55,7 @@ class _ManageOnDefinePaymentCriteriaPageState
 
   // Função para retornar a cor com base no índice da linha
   Color _getRowColor(int index) {
-    return index % 2 == 0 ? const Color.fromARGB(255, 14, 13, 13)! : const Color.fromARGB(255, 109, 108, 108);
+    return index % 2 == 0 ? const Color.fromARGB(255, 14, 13, 13) : const Color.fromARGB(255, 109, 108, 108);
   }
 
   @override
@@ -93,8 +93,8 @@ class _ManageOnDefinePaymentCriteriaPageState
                 final index = entry.key;
                 final criteria = entry.value;
                 return DataRow(
-                  color: MaterialStateProperty.resolveWith<Color>(
-                    (Set<MaterialState> states) {
+                  color: WidgetStateProperty.resolveWith<Color>(
+                    (Set<WidgetState> states) {
                       return _getRowColor(index); // Aplica a cor com base no índice
                     },
                   ),

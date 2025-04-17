@@ -50,4 +50,22 @@ class VeiculoService {
     }
   }
 
+// Método para apagar um veículo
+  Future<bool> deleteVeiculo(int id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/veiculo/$id'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return true; // Veículo apagado com sucesso
+    } else if (response.statusCode == 404) {
+      throw Exception('Veículo não encontrado');
+    } else {
+      throw Exception('Falha ao apagar veículo. Código de status: ${response.statusCode}');
+    }
+  }
+
 }

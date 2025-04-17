@@ -220,18 +220,6 @@ void _filterAtendimentos() {
           ),
           const SizedBox(width: 8),
           _buildSearchField(
-            controller: _userController,
-            label: 'User',
-            icon: Icons.person,
-          ),
-          const SizedBox(width: 8),
-          _buildSearchField(
-            controller: _stateController,
-            label: 'State',
-            icon: Icons.flag,
-          ),
-          const SizedBox(width: 8),
-          _buildSearchField(
             controller: _matriculaController,
             label: 'License Plate',
             icon: Icons.directions_car,
@@ -328,7 +316,7 @@ void _showDriverDetailsDialog(int atendimentoId) async {
     UserAtendimentoAllocationService allocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
     UserBase64 user = (await allocationService.getDriverForAtendimento(atendimentoId)) as UserBase64;
 
-    if (user.id == null || user.id == 0) {
+    if (user.id == 0) {
       throw Exception('Driver not associated with this service');
     }
 
@@ -504,7 +492,7 @@ showDialog(
                                           onChanged: (bool? value) {
                                             setState(() {
                                               if (value == true) {
-                                                selectedUserIds.add(user.id!);
+                                                selectedUserIds.add(user.id);
                                               } else {
                                                 selectedUserIds.remove(user.id);
                                               }
@@ -572,10 +560,6 @@ Future<List<UserBase64>> _fetchUsers() async {
   try {
     var response = await _userService.getUsers();
     print('User service response: $response');
-
-    if (response is! List) {
-      throw Exception("Invalid data: Expected user list");
-    }
 
     print('Response is a user list');
 

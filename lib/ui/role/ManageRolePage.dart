@@ -92,7 +92,7 @@ class _AddRolePageState extends State<AddRolePage> {
     );
 
     if (confirmed) {
-      bool success = await roleService.deleteRole(role.id!);
+      bool success = await roleService.deleteRole(role.id);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Role "${role.name}" deleted successfully!')),

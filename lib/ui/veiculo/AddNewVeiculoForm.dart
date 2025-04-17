@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:app/models/VeiculoDetails.dart';
 import 'package:app/services/VeiculoImgService.dart';
 import 'package:app/ui/veiculo/ImagePreviewPage.dart';

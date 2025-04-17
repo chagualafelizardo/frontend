@@ -14,7 +14,8 @@ class ReservaService {
     required String destination,
     required int numberOfDays,
     required int userID,
-    required String inService, // ✅ Adicione no construtor
+    required String inService,
+    required String isPaid,
     required int clientID,
     required int veiculoID,
     required String state,
@@ -28,6 +29,7 @@ class ReservaService {
         'destination': destination,
         'number_of_days': numberOfDays,
         'inService': inService,
+        'isPaid': isPaid,
         'userID': userID,
         'clientID': clientID,
         'veiculoID': veiculoID,
@@ -49,6 +51,30 @@ class ReservaService {
     } else {
       throw Exception('Failed to load reservas');
     }
+  }
+
+  /// Retorna apenas as reservas marcadas como pagas (isPaid == 'Paid')
+  Future<List<Reserva>> getPaidReservas() async {
+      final response = await http.get(Uri.parse('$baseUrl/reserva/reservas/paid'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        return data.map((item) => Reserva.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load paid reservas');
+      }
+    }
+
+    /// Retorna apenas as reservas marcadas como não pagas (isPaid == 'Not Paid')
+    Future<List<Reserva>> getNotpaidReservas() async {
+      final response = await http.get(Uri.parse('$baseUrl/reserva/reservas/notpaid'));
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        return data.map((item) => Reserva.fromJson(item)).toList();
+      } else {
+        throw Exception('Failed to load unpaid reservas');
+      }
   }
 
   Map<DateTime, int> agruparReservasPorData(List<Reserva> reservas) {
@@ -191,7 +217,7 @@ class ReservaService {
       if (response.statusCode != 201) {
         throw Exception('Failed to start rental process');
       }
-    }
+  }
 
   Future<void> updateInService({
         required int reservaId,
@@ -217,6 +243,33 @@ class ReservaService {
         } catch (e) {
           print('Exception occurred in updateInService: $e');
           throw Exception('Failed to update inService');
+        }
+  }
+
+  Future<void> updateIsPaid({
+        required int reservaId,
+        required String isPaid,
+      }) async {
+        final url = Uri.parse('$baseUrl/reserva/$reservaId/isPaid');
+        final body = jsonEncode({'isPaid': isPaid});
+
+        try {
+          final response = await http.put(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          );
+
+          if (response.statusCode == 200) {
+            print('isPaid updated successfully');
+          } else {
+            print('Failed to update isPaid. Status code: ${response.statusCode}');
+            print('Response body: ${response.body}');
+            throw Exception('Failed to update isPaid');
+          }
+        } catch (e) {
+          print('Exception occurred in updateInService: $e');
+          throw Exception('Failed to update isPaid');
         }
   }
 }

@@ -139,7 +139,7 @@ class _ManageUsersEmployeeFinancialDetailsPageState extends State<ManageUsersEmp
 
     if (confirm == true) {
       try {
-        await userService.deleteUser(user.id!);
+        await userService.deleteUser(user.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('User "${user.username}" deleted successfully!')),
@@ -254,10 +254,10 @@ Widget build(BuildContext context) {
                                           child: ManageBankDetailsPage(
                                             service: BankDetailsService(
                                               baseUrl: dotenv.env['BASE_URL']!,
-                                              userID: user.id!, 
+                                              userID: user.id, 
                                               username: '${user.firstName} ${user.lastName}',
                                             ), 
-                                            userID: user.id!,
+                                            userID: user.id,
                                             username: '${user.firstName} ${user.lastName}',
                                           ),
                                         ),
@@ -347,10 +347,10 @@ Widget build(BuildContext context) {
                                                   child: ManageBankDetailsPage(
                                                     service: BankDetailsService(
                                                       baseUrl: dotenv.env['BASE_URL']!,
-                                                      userID: user.id!, 
+                                                      userID: user.id, 
                                                       username: '${user.firstName} ${user.lastName}',
                                                     ), 
-                                                    userID: user.id!,
+                                                    userID: user.id,
                                                     username: '${user.firstName} ${user.lastName}',
                                                   ),
                                                 ),

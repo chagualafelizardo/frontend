@@ -160,14 +160,17 @@ Future<void> _fetchReservas() async {
       try {
         print("Attempting to confirm the reservation via the service...");
 
-        // Chamada ao serviço
         await _reservaService.unconfirmReserva(reservaId.toString());
-        // Actualizar a flag inService para  "No", indicando que a reserva ainda na foi adiante
         await _reservaService.updateInService(
           reservaId: reservaId,
           inService: 'No',
         );
 
+    /* Processo de Pagamento Confirmacao  */
+        await _reservaService.updateIsPaid(
+              reservaId: reservaId,
+              isPaid: 'Not Paid',
+        );
         print("Reservation confirmed successfully on the server.");
 
         // Atualiza o estado localmente
@@ -753,7 +756,31 @@ String _addPadding(String base64String) {
             Text('Destination: ${reserva.destination}'),
             Text('Date: ${reserva.date}'),
             Text('Number of Days: ${reserva.numberOfDays}'),
-            Text('State: ${reserva.state}'),
+              Row(
+                                          children: [
+                                            // Estado da reserva
+                                            Chip(
+                                              label: Text(
+                                                reserva.state,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.state == 'Confirmed'
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Status de pagamento
+                                            Chip(
+                                              label: Text(
+                                                reserva.isPaid,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.isPaid =='Paid'
+                                                  ? Colors.green.shade700
+                                                  : Colors.red.shade700,
+                                            ),
+                                          ],
+                                        ),
             const SizedBox(height: 8.0),
             Row(
               children: [
@@ -813,13 +840,17 @@ String _addPadding(String base64String) {
           mainAxisSize: MainAxisSize.min,
           children: [
             Tooltip(
-              message: 'Moving forward with the process', // Texto do tooltip
+              message: reserva.isPaid == "Not Paid"
+                  ? 'The reservation is not paid, cannot proceed to the rental process. You must go back to the booking process and register the payment.' 
+                  : 'The reservation has already been paid, you can now proceed with the rental process. Click on the button to proceed with the process.',
               child: Material(
-                color: Colors.lightBlue, // Cor de fundo azul claro
-                shape: const CircleBorder(), // Formato circular
+                color: reserva.isPaid == "Not Paid" ? Colors.grey : Colors.lightBlue,
+                shape: const CircleBorder(),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(50), // Borda circular para o efeito de toque
-                  onTap: () => _advanceProcess(reserva.id),
+                  borderRadius: BorderRadius.circular(50),
+                  onTap: reserva.isPaid == "Not Paid" 
+                      ? null 
+                      : () => _advanceProcess(reserva.id),
                   child: const Padding(
                     padding: EdgeInsets.all(8.0),
                     child: Icon(Icons.add_circle_outline, color: Colors.white),

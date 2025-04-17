@@ -171,7 +171,7 @@ class _EditUserFormState extends State<EditUserForm> {
 
         // Atribui as novas roles selecionadas
         for (var role in selectedRoles) {
-          await userRoleService.assignRoleToUser(widget.user.id, role.id!);
+          await userRoleService.assignRoleToUser(widget.user.id, role.id);
         }
 
         // Notifica que o usuário foi atualizado
@@ -456,7 +456,7 @@ class _EditUserFormState extends State<EditUserForm> {
             value: roles[index].selected ?? false,
             onChanged: (bool? newValue) {
               setState(() {
-                roles[index].selected = newValue;
+                roles[index].selected = newValue!;
               });
             },
           ),

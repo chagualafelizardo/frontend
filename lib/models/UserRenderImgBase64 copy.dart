@@ -1,4 +1,3 @@
-import 'package:app/models/Reserva.dart';
 import 'package:app/models/Role.dart';
 
 class UserBase64 {
@@ -67,21 +66,6 @@ class UserBase64 {
       roles: json['roles'] != null
           ? (json['roles'] as List).map((role) => Role.fromJson(role)).toList()
           : null, // Processa as roles
-    );
-  }
-
-  // Adicione esse método:
-  static UserBase64 fromUser(User user) {
-    return UserBase64(
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      imgBase64: user.imagemBase64, 
-      username: user.username,
-      gender: user.gender, 
-      birthdate: user.birthdate, 
-      email: user.email, // se existir
-      
     );
   }
 }

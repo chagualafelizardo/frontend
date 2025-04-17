@@ -63,10 +63,8 @@ class UserDetailsPage extends StatelessWidget {
                           _buildDetailRow(Icons.badge, 'First Name', user.firstName),
                           _buildDetailRow(Icons.badge, 'Last Name', user.lastName),
                           _buildDetailRow(Icons.email, 'Email', user.email),
-                          if (user.gender != null)
-                            _buildDetailRow(Icons.transgender, 'Gender', user.gender!),
-                          if (user.birthdate != null)
-                            _buildDetailRow(Icons.cake, 'Birthdate', user.birthdate as String), 
+                          _buildDetailRow(Icons.transgender, 'Gender', user.gender!),
+                          _buildDetailRow(Icons.cake, 'Birthdate', user.birthdate as String), 
                         ],
                       ),
                     ),

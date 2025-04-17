@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:app/models/UserRole.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/UserReserva.dart';
 

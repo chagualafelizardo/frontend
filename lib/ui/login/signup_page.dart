@@ -343,7 +343,7 @@ class _SignupPageState extends State<SignupPage> {
               leading: Radio<String>(
                 value: 'M',
                 groupValue: _gender,
-                fillColor: MaterialStateColor.resolveWith((states) => Colors.blue),
+                fillColor: WidgetStateColor.resolveWith((states) => Colors.blue),
                 onChanged: (value) {
                   setState(() {
                     _gender = value!;
@@ -362,7 +362,7 @@ class _SignupPageState extends State<SignupPage> {
                 leading: Radio<String>(
                   value: 'F',
                   groupValue: _gender,
-                  fillColor: MaterialStateColor.resolveWith((states) => Colors.blue),
+                  fillColor: WidgetStateColor.resolveWith((states) => Colors.blue),
                   onChanged: (value) {
                     setState(() {
                       _gender = value!;

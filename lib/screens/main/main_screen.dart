@@ -15,7 +15,7 @@ import 'package:app/ui/pagamento/ManagePaymentPage.dart';
 import 'package:app/ui/pagamento/ManageReservationPaymentPage.dart';
 import 'package:app/ui/postoabastencimento/ManagePostosPage.dart';
 import 'package:app/ui/reserva/ManageReservasPage.dart';
-import 'package:app/ui/reserva/MapSelectionScreen.dart';
+import 'package:app/ui/reserva/ManageDashboardService.dart';
 import 'package:app/ui/user/ManageUsersPage.dart';
 import 'package:app/ui/veiculo/ManageVehicleSupplyPage.dart';
 import 'package:app/ui/veiculo/ManageVeiculosPage.dart';
@@ -81,7 +81,7 @@ class _MainScreenState extends State<MainScreen> {
       case '/pagamentoreserva':
         return ManageReservationPaymentPage();
       case '/geolocation':
-      return MapSelectionScreen(); 
+      return ManageDashboardService(); 
       case '/settings':
         return LoginPage();
       default:

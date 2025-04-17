@@ -2,7 +2,6 @@ import 'package:app/ui/charts/ReservaPieChart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../../constants.dart';
-import 'chart.dart';
 import 'storage_info_card.dart';
 import 'package:app/services/ReservaService.dart';
 import 'package:app/models/Reserva.dart';

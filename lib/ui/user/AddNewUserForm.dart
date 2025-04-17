@@ -169,7 +169,7 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
           List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
 
           for (var role in selectedRoles) {
-            await userRoleService.assignRoleToUser(createdUser.id, role.id!);
+            await userRoleService.assignRoleToUser(createdUser.id, role.id);
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -455,7 +455,7 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
             value: roles[index].selected ?? false,
             onChanged: (bool? newValue) {
               setState(() {
-                roles[index].selected = newValue;
+                roles[index].selected = newValue!;
               });
             },
           ),

@@ -1,3 +1,4 @@
+import 'package:app/models/Role.dart';
 import 'package:app/ui/user/EditUserForm.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/UserRenderImgBase64.dart';
@@ -45,6 +46,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
     });
   }
 
+/*
   Future<void> _fetchUsers() async {
     try {
       final List<dynamic> userJsonList = await userService.getUsers();
@@ -68,6 +70,78 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
       );
     }
   }
+*/
+
+  Future<void> _fetchUsers() async {
+  try {
+    final List<dynamic> userJsonList = await userService.getUsers();
+    
+    final List<UserBase64> usersWithRoles = [];
+    
+    for (var userJson in userJsonList) {
+      if (userJson is Map<String, dynamic>) {
+        try {
+          final user = UserBase64.fromJson(userJson);
+          
+          // Tenta obter os roles, mesmo que o userJson já tenha roles
+          // Isso garante que os roles estarão no formato correto
+          List<Role> roles = [];
+          try {
+            roles = await userService.getUserRoles(user.id);
+          } catch (e) {
+            print('Error fetching roles for user ${user.id}: $e');
+            // Se já existirem roles no userJson, usa esses
+            if (userJson['roles'] != null) {
+              roles = (userJson['roles'] as List)
+                  .map((r) => Role.fromJson(r))
+                  .toList();
+            }
+          }
+
+          final userWithRoles = UserBase64(
+            id: user.id,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            gender: user.gender,
+            birthdate: user.birthdate,
+            email: user.email,
+            address: user.address,
+            neighborhood: user.neighborhood,
+            phone1: user.phone1,
+            phone2: user.phone2,
+            password: user.password,
+            state: user.state,
+            imgBase64: user.imgBase64,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            roles: roles.isNotEmpty ? roles : null,
+          );
+          
+          usersWithRoles.add(userWithRoles);
+        } catch (e) {
+          print('Error processing user ${userJson['id']}: $e');
+          // Pode optar por adicionar o usuário sem roles ou pular completamente
+        }
+      } else {
+        print('Unexpected type for userJson: ${userJson.runtimeType}');
+      }
+    }
+    
+    setState(() {
+      _users = usersWithRoles;
+      _filteredUsers = List.from(_users);
+    });
+    
+  } catch (e, stackTrace) {
+    print('Error fetching users: $e');
+    print('Stack trace: $stackTrace');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to fetch users.')),
+    );
+  }
+}
+
 
   Uint8List? _decodeImage(String? base64Image) {
     if (base64Image == null || base64Image.isEmpty) {
@@ -169,7 +243,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
 
     if (confirm == true) {
       try {
-        await userService.deleteUser(user.id!);
+        await userService.deleteUser(user.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('User "${user.username}" deleted successfully!')),
@@ -290,36 +364,72 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.start,
                                   children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit),
-                                      onPressed: () {
-                                        final selectedUser = user;
-                                        showDialog(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return EditUserForm(
-                                              userService: userService,
-                                              user: selectedUser,
-                                              onUserUpdated: _fetchUsers,
+                                    // View Button
+                                    Tooltip(
+                                      message: 'View user details',
+                                      child: Material(
+                                        color: Colors.blueAccent,
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(50),
+                                          onTap: () => _viewUser(user),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Icon(Icons.visibility, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8), // Spacing between buttons
+                                    
+                                    // Edit Button
+                                    Tooltip(
+                                      message: 'Edit user',
+                                      child: Material(
+                                        color: Colors.orangeAccent,
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(50),
+                                          onTap: () {
+                                            final selectedUser = user;
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return EditUserForm(
+                                                  userService: userService,
+                                                  user: selectedUser,
+                                                  onUserUpdated: _fetchUsers,
+                                                );
+                                              },
                                             );
                                           },
-                                        );
-                                      },
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Icon(Icons.edit, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      onPressed: () {
-                                        _confirmDeleteUser(user);
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.visibility),
-                                      onPressed: () {
-                                        _viewUser(user);
-                                      },
+                                    const SizedBox(width: 8), // Spacing between buttons
+                                    
+                                    // Delete Button
+                                    Tooltip(
+                                      message: 'Delete user',
+                                      child: Material(
+                                        color: Colors.redAccent,
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(50),
+                                          onTap: () => _confirmDeleteUser(user),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Icon(Icons.delete, color: Colors.white),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
-                                ),
+                                )
                               ],
                             ),
                           ),
@@ -384,38 +494,74 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                                 DataCell(Text(user.state ?? 'N/A')),
                                 DataCell(
                                   Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit),
-                                        onPressed: () async {
-                                          final selectedUser = user;
-                                          showDialog(
-                                            context: context,
-                                            builder: (BuildContext context) {
-                                              return EditUserForm(
-                                                userService: userService,
-                                                user: selectedUser,
-                                                onUserUpdated: _fetchUsers,
-                                              );
-                                            },
-                                          );
-                                        },
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    // View Button
+                                    Tooltip(
+                                      message: 'View user details',
+                                      child: Material(
+                                        color: Colors.blueAccent,
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(50),
+                                          onTap: () => _viewUser(user),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Icon(Icons.visibility, color: Colors.white),
+                                          ),
+                                        ),
                                       ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete),
-                                        onPressed: () {
-                                          _confirmDeleteUser(user);
-                                        },
+                                    ),
+                                    const SizedBox(width: 8), // Spacing between buttons
+                                    
+                                    // Edit Button
+                                    Tooltip(
+                                      message: 'Edit user',
+                                      child: Material(
+                                        color: Colors.orangeAccent,
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(50),
+                                          onTap: () {
+                                            final selectedUser = user;
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return EditUserForm(
+                                                  userService: userService,
+                                                  user: selectedUser,
+                                                  onUserUpdated: _fetchUsers,
+                                                );
+                                              },
+                                            );
+                                          },
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Icon(Icons.edit, color: Colors.white),
+                                          ),
+                                        ),
                                       ),
-                                      IconButton(
-                                        icon: const Icon(Icons.visibility),
-                                        onPressed: () {
-                                          _viewUser(user); // Certifique-se que 'user' está disponível neste contexto
-                                        },
-                                        tooltip: 'View user details', // Adicione um tooltip para melhor UX
+                                    ),
+                                    const SizedBox(width: 8), // Spacing between buttons
+                                    
+                                    // Delete Button
+                                    Tooltip(
+                                      message: 'Delete user',
+                                      child: Material(
+                                        color: Colors.redAccent,
+                                        shape: const CircleBorder(),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(50),
+                                          onTap: () => _confirmDeleteUser(user),
+                                          child: const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Icon(Icons.delete, color: Colors.white),
+                                          ),
+                                        ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
+                                )
                                 ),
                               ],
                             );

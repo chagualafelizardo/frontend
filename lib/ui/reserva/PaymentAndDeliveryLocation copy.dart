@@ -1,6 +1,7 @@
 import 'package:app/models/DriveDeliver.dart';
 import 'package:app/models/PagamentoReserva.dart';
 import 'package:app/models/Reserva.dart';
+import 'package:app/models/VehicleHistoryRent.dart';
 import 'package:app/services/PagamentoReservaService.dart';
 import 'package:app/services/DriveDeliverService.dart';
 import 'package:app/services/ReservaService.dart';
@@ -50,8 +51,8 @@ class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation>
   LatLng? _returnLocation;
   GoogleMapController? _pickupMapController;
   GoogleMapController? _returnMapController;
-  Set<Marker> _pickupMarkers = {};
-  Set<Marker> _returnMarkers = {};
+  final Set<Marker> _pickupMarkers = {};
+  final Set<Marker> _returnMarkers = {};
 
   final TextEditingController _pickupSearchController = TextEditingController();
   final TextEditingController _returnSearchController = TextEditingController();
@@ -140,30 +141,20 @@ class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation>
     _returnMapController = controller;
   }
 
-void _onPickupMapTap(LatLng position) {
-  setState(() {
-    // Atualiza o local de recolha
-    _pickupLocation = position;
-    _pickupMarkers = {
-      Marker(
-        markerId: const MarkerId('pickup'),
-        position: position,
-        infoWindow: const InfoWindow(title: 'Pickup Location'),
-      ),
-    };
-
-    // Também atualiza o local de devolução com as mesmas coordenadas
-    _returnLocation = position;
-    _returnMarkers = {
-      Marker(
-        markerId: const MarkerId('return'),
-        position: position,
-        infoWindow: const InfoWindow(title: 'Return Location (same as pickup)'),
-      ),
-    };
-  });
-}
-
+  void _onPickupMapTap(LatLng location) {
+    setState(() {
+      _pickupLocation = location;
+      _pickupMarkers.clear();
+      _pickupMarkers.add(
+        Marker(
+          markerId: const MarkerId('pickup_location'),
+          position: location,
+          infoWindow: const InfoWindow(title: 'Pickup Location'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        ),
+      );
+    });
+  }
 
   void _onReturnMapTap(LatLng location) {
     setState(() {

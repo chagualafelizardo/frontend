@@ -93,8 +93,8 @@ class PaymentsTab extends StatelessWidget {
                   : const Color.fromARGB(255, 83, 83, 83);
 
               return DataRow(
-                color: MaterialStateProperty.resolveWith<Color>(
-                  (Set<MaterialState> states) => color,
+                color: WidgetStateProperty.resolveWith<Color>(
+                  (Set<WidgetState> states) => color,
                 ),
                 cells: [
                   DataCell(Text(payment.id.toString())),
@@ -217,8 +217,8 @@ class PaymentDetails extends StatelessWidget {
                                   : const Color.fromARGB(255, 83, 83, 83);
 
                               return DataRow(
-                                color: MaterialStateProperty.resolveWith<Color>(
-                                  (Set<MaterialState> states) => color,
+                                color: WidgetStateProperty.resolveWith<Color>(
+                                  (Set<WidgetState> states) => color,
                                 ),
                                 cells: [
                                   DataCell(Text(detail.id.toString())),

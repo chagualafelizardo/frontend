@@ -348,7 +348,7 @@ void _applyFilters() {
                                                 flex: 1,
                                                 child: Text(
                                                   detail.startDate != null
-                                                      ? detail.startDate!.toString().split(' ')[0] // Verificação de nulidade para startDate
+                                                      ? detail.startDate.toString().split(' ')[0] // Verificação de nulidade para startDate
                                                       : 'N/A',
                                                   style: const TextStyle(color: Colors.grey),
                                                   overflow: TextOverflow.ellipsis,
@@ -359,7 +359,7 @@ void _applyFilters() {
                                                 flex: 1,
                                                 child: Text(
                                                   detail.endDate != null
-                                                      ? detail.endDate!.toString().split(' ')[0] // Verificação de nulidade para endDate
+                                                      ? detail.endDate.toString().split(' ')[0] // Verificação de nulidade para endDate
                                                       : 'N/A',
                                                   style: const TextStyle(color: Colors.grey),
                                                   overflow: TextOverflow.ellipsis,
@@ -682,11 +682,11 @@ String _addPadding(String base64String) {
         content: const Text('Do you want to confirm this reservation?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false), // Cancelar
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true), // Confirmar
+            onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Confirm'),
           ),
         ],
@@ -694,50 +694,40 @@ String _addPadding(String base64String) {
     },
   );
 
-  // Se o usuário confirmar
   if (confirm == true) {
-    print("User confirmed reservation with ID: $reservaId");
-
     try {
-      print("Attempting to confirm the reservation via the service...");
-
-      // Chamada ao serviço para confirmar no backend
       await _reservaService.confirmReserva(reservaId.toString());
 
-      print("Reservation confirmed successfully on the server.");
-
-      // Atualiza o estado localmente
       setState(() {
-        print("Updating local reservation state to 'Confirmed'.");
         _reservas = _reservas.map((reserva) {
           if (reserva.id == reservaId) {
             reserva.state = 'Confirmed';
-            print("Reservation ID $reservaId updated to Confirmed.");
           }
           return reserva;
         }).toList();
         _filteredReservas = _reservas;
       });
 
-      // **Abrir o formulário para adicionar coordenadas**
-      print("Opening AddReservationScreen for adding coordinates...");
+      // Encontra a reserva específica para obter os IDs
+      Reserva reserva = _reservas.firstWhere((r) => r.id == reservaId);
+      
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PaymentAndDeliveryLocation(reservaId: reservaId, userId: 1,),
+          builder: (context) => PaymentAndDeliveryLocation(
+            reservaId: reservaId,
+            userId: reserva.userId,       // Obtém o ID do usuário da reserva
+            veiculoId: reserva.veiculoId, // Obtém o ID do veículo da reserva
+          ),
         ),
       );
 
     } catch (e, stackTrace) {
-      // Captura o erro e imprime o rastreamento da pilha
       print('Exception occurred while confirming reservation: ${e.toString()}');
       print('StackTrace: $stackTrace');
     }
-  } else {
-    print("User cancelled the reservation confirmation.");
   }
 }
-
 
   void _showAddNewReservaForm() {
     showDialog(
@@ -893,7 +883,31 @@ Widget build(BuildContext context) {
                                     Text('Destination: ${reserva.destination}'),
                                     Text('Reserve Date: ${reserva.date}'),
                                     Text('Number of Days: ${reserva.numberOfDays}'),
-                                    Text('State: ${reserva.state}'),
+                                      Row(
+                                          children: [
+                                            // Estado da reserva
+                                            Chip(
+                                              label: Text(
+                                                reserva.state,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.state == 'Confirmed'
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Status de pagamento
+                                            Chip(
+                                              label: Text(
+                                                reserva.isPaid,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.isPaid =='Paid'
+                                                  ? Colors.green.shade700
+                                                  : Colors.red.shade700,
+                                            ),
+                                          ],
+                                        ),
                                     const SizedBox(height: 8.0),
                                     Row(
                                       children: [
@@ -982,7 +996,7 @@ Widget build(BuildContext context) {
                                             ),
                                           ),
                                         ),
-                                      )
+                                      ),
                                   ],
                                 ),
                               ),
@@ -1006,7 +1020,32 @@ Widget build(BuildContext context) {
                                     Text('Destination: ${reserva.destination}'),
                                     Text('Reserve Date: ${reserva.date}'),
                                     Text('Number of Days: ${reserva.numberOfDays}'),
-                                    Text('State: ${reserva.state}'),
+Row(
+                                          children: [
+                                            // Estado da reserva
+                                            Chip(
+                                              label: Text(
+                                                reserva.state,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.state == 'Confirmed'
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Status de pagamento
+                                            Chip(
+                                              label: Text(
+                                                reserva.isPaid,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.isPaid =='Paid'
+                                                  ? Colors.green.shade700
+                                                  : Colors.red.shade700,
+                                            ),
+                                          ],
+                                        ),
+
                                 const SizedBox(height: 8.0),
                                 Row(
                                   children: [

@@ -1,25 +1,29 @@
 class Role {
   final int id;
   final String name;
-  bool? selected; // Campo para armazenar o estado selecionado
+  bool selected;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Role({
     required this.id,
     required this.name,
-    this.selected = false, // Definindo como falso por padrão
+    this.selected = false,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory Role.fromJson(Map<String, dynamic> json) {
     return Role(
-      id: json['id'],
-      name: json['name'],
+      id: json['id'] ?? 0, // Valor padrão se for null
+      name: json['name'] ?? '', // Valor padrão se for null
       selected: json['selected'] ?? false,
-      createdAt: DateTime.parse(json['createdAt']), // Converte a string para DateTime
-      updatedAt: DateTime.parse(json['updatedAt']), // Converte a string para DateTime
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : DateTime.now(), // Valor padrão se for null
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt']) 
+          : DateTime.now(), // Valor padrão se for null
     );
   }
 
@@ -28,8 +32,8 @@ class Role {
       'id': id,
       'name': name,
       'selected': selected,
-      'createdAt': createdAt.toIso8601String(), // Converte DateTime para string
-      'updatedAt': updatedAt.toIso8601String(), // Converte DateTime para string
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 }

@@ -4,27 +4,47 @@ import 'package:app/models/User.dart' as user_model; // Adicione prefixo
 import 'package:app/models/Reserva.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart'; // Add this at the top
 
 class PagamentoReservaService {
   final String? baseUrl = dotenv.env['BASE_URL'];
 
   Future<PagamentoReserva> createPagamentoReserva(PagamentoReserva pagamento) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/pagamentoreserva'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(pagamento.toJson()),
-      );
+  try {
+    final url = '$baseUrl/pagamentoreserva';
+    debugPrint('=== ENVIANDO REQUEST ===');
+    debugPrint('URL: $url');
+    debugPrint('Headers: {"Content-Type": "application/json"}');
+    debugPrint('Body: ${jsonEncode(pagamento.toJson())}');
 
-      if (response.statusCode == 201) {
-        return PagamentoReserva.fromJson(jsonDecode(response.body));
-      } else {
-        throw Exception('Failed to create payment: ${response.statusCode}');
-      }
-    } catch (error) {
-      throw Exception('Error creating payment: $error');
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(pagamento.toJson()),
+    );
+
+    debugPrint('=== RESPOSTA RECEBIDA ===');
+    debugPrint('Status code: ${response.statusCode}');
+    debugPrint('Response body: ${response.body}');
+    debugPrint('Headers: ${response.headers}');
+
+    if (response.statusCode == 201) {
+      return PagamentoReserva.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to create payment. Status: ${response.statusCode}. Body: ${response.body}');
     }
+  } catch (error) {
+    debugPrint('=== ERRO NO createPagamentoReserva ===');
+    debugPrint('Tipo: ${error.runtimeType}');
+    debugPrint('Mensagem: ${error.toString()}');
+    if (error is http.ClientException) {
+      debugPrint('ClientException: ${error.message}');
+      debugPrint('URI: ${error.uri}');
+    }
+    rethrow;
   }
+}
+
 
   Future<List<PagamentoReserva>> fetchAllPagamentosReservas() async {
     try {

@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:app/models/VeiculoDetails.dart';
+import 'package:app/services/VehicleHistoryRentService.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:app/services/VeiculoAddService.dart';
+import 'package:app/ui/veiculo/ManageVehiclePriceRentHistoryPage.dart';
 import 'package:app/models/VeiculoAdd.dart';
 import 'package:app/services/VeiculoImgService.dart';
 import 'package:app/ui/veiculo/ImagePreviewPage.dart';
@@ -36,6 +38,7 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
   final TextEditingController _numLugaresController = TextEditingController();
   final TextEditingController _numMotorController = TextEditingController();
   final TextEditingController _numPortasController = TextEditingController();
+  final VehicleHistoryRentService historyRentService = VehicleHistoryRentService(dotenv.env['BASE_URL']!);
 
   String _selectedState = 'Free';
   String _selectedCombustivel = 'GASOLINA';
@@ -169,9 +172,9 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
           await _uploadAdditionalImages(veiculo.id);
         }
 
-        if (_existingImageUrls.isNotEmpty) {
-          await _deleteRemovedImages(veiculo.id);
-        }
+        // if (_existingImageUrls.isNotEmpty) {
+        //   await _deleteRemovedImages(veiculo.id);
+        // }
 
         widget.onVeiculoUpdated();
         Navigator.of(context).pop();
@@ -528,7 +531,7 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Color.fromRGBO(245, 243, 243, 0.986),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -616,17 +619,283 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: const Text('Cancel'),
+        Tooltip(
+          message: 'Cancel edit and close',
+          child: TextButton.icon(
+            icon: const Icon(Icons.close, color: Colors.redAccent),
+            label: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: const BorderSide(color: Colors.redAccent),
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
         ),
-        ElevatedButton(
-          onPressed: _saveVeiculo,
-          child: const Text('Save'),
+        Tooltip(
+          message: 'Manage price and rental history for this vehicle',
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.history),
+            label: const Text('Rent Price History'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+            ),
+            onPressed: () {
+              _showHistoryPopup(context);
+            },
+          ),
+        ),
+        Tooltip(
+          message: 'Add new vehicle detail',
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.add_circle_outline),
+            label: const Text('Add Detail'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo,
+            ),
+            onPressed: () {
+              _showAddDetailDialog();
+            },
+          ),
+        ),
+        Tooltip(
+          message: 'Save all changes made to the vehicle',
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.save),
+            label: const Text('Save'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+            ),
+            onPressed: _saveVeiculo,
+          ),
         ),
       ],
+
+    );
+  }
+
+  void _showAddDetailDialog() {
+    final descriptionController = TextEditingController();
+    final obsController = TextEditingController();
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now().add(const Duration(days: 1));
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.4, // 40% da largura
+              maxHeight: MediaQuery.of(context).size.height * 0.7, // 70% da altura
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Add Vehicle Detail',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: descriptionController,
+                          decoration: const InputDecoration(
+                            labelText: 'Description',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () async {
+                                  final selectedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: startDate,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (selectedDate != null) {
+                                    setState(() {
+                                      startDate = selectedDate;
+                                    });
+                                  }
+                                },
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Start Date',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  child: Text(
+                                    '${startDate.day}/${startDate.month}/${startDate.year}',
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () async {
+                                  final selectedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: endDate,
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (selectedDate != null) {
+                                    setState(() {
+                                      endDate = selectedDate;
+                                    });
+                                  }
+                                },
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'End Date',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  child: Text(
+                                    '${endDate.day}/${endDate.month}/${endDate.year}',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: obsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Observations',
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 3,
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final newDetail = VeiculoDetails(
+                                  id: 0,
+                                  veiculoId: widget.veiculo.id,
+                                  description: descriptionController.text,
+                                  startDate: startDate,
+                                  endDate: endDate,
+                                  obs: obsController.text,
+                                );
+                                
+                                await widget.veiculoServiceAdd.addVeiculoDetail(newDetail);
+
+                                setState(() {
+                                  _veiculoDetails.add(newDetail);
+                                });
+                                
+                                Navigator.pop(context);
+                              },
+                              child: const Text('Save'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHistoryPopup(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.4,  // 90% da largura da tela
+              maxHeight: MediaQuery.of(context).size.height * 0.7, // 70% da altura da tela
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Rental Price History',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ManageVehicleHistoryPage(
+                      service: historyRentService,
+                      veiculoId: widget.veiculo.id,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

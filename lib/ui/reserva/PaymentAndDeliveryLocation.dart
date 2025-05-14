@@ -2,6 +2,7 @@ import 'package:app/models/DriveDeliver.dart';
 import 'package:app/models/PagamentoReserva.dart';
 import 'package:app/models/Reserva.dart';
 import 'package:app/services/PagamentoReservaService.dart';
+import 'package:app/services/VeiculoService.dart';
 import 'package:app/services/DriveDeliverService.dart';
 import 'package:app/services/ReservaService.dart';
 import 'package:app/services/VehicleHistoryRentService.dart';
@@ -35,6 +36,7 @@ class PaymentAndDeliveryLocation extends StatefulWidget {
 class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation> {
   final VehicleHistoryRentService _rentHistoryService = VehicleHistoryRentService(dotenv.env['BASE_URL']!);
   final ReservaService _reservaService =  ReservaService(dotenv.env['BASE_URL']!);
+  final VeiculoService _veiculoService =  VeiculoService(dotenv.env['BASE_URL']!);
 
   bool _isLoadingRentValue = false;
   

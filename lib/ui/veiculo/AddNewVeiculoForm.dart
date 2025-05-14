@@ -283,7 +283,7 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add New Vehicle', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+      title: const Text('Add New Vehicle', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
       content: SizedBox(
         width: 800,
         height: 600,

@@ -17,15 +17,19 @@ class UserAtendimentoAllocation {
 
   // Método para converter JSON em um objeto UserAtendimentoAllocation
   factory UserAtendimentoAllocation.fromJson(Map<String, dynamic> json) {
-    return UserAtendimentoAllocation(
-      id: json['id'],
-      userId: json['userId'],
-      atendimentoId: json['atendimentoId'],
-      allocationId: json['allocationId'],
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
-    );
-  }
+      return UserAtendimentoAllocation(
+        id: json['id'],
+        userId: json['userId'],
+        atendimentoId: json['atendimentoId'],
+        allocationId: json['allocationId'],
+        createdAt: json['createdAt'] != null 
+            ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
+            : null,
+        updatedAt: json['updatedAt'] != null 
+            ? DateTime.tryParse(json['updatedAt']) ?? DateTime.now()
+            : null,
+      );
+    }
 
   // Método para converter um objeto UserAtendimentoAllocation em JSON
   Map<String, dynamic> toJson() {
@@ -39,3 +43,4 @@ class UserAtendimentoAllocation {
     };
   }
 }
+

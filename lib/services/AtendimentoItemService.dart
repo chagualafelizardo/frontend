@@ -34,4 +34,18 @@ class AtendimentoItemService {
       throw Exception('Failed to load atendimento items');
     }
   }
+
+  Future<List<AtendimentoItem>> fetchAtendimentoItem(int atendimentoId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/atendimentoItem/$atendimentoId/items'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = json.decode(response.body);
+      return jsonResponse.map((item) => AtendimentoItem.fromJson(item)).toList();
+    } else {
+      throw Exception('Failed to load atendimento items');
+    }
+  }
 }

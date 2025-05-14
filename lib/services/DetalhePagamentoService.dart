@@ -8,16 +8,30 @@ class DetalhePagamentoService {
   DetalhePagamentoService(this.baseUrl);
 
   // Buscar todos os detalhes de pagamento
-  Future<List<DetalhePagamento>> fetchDetalhesPagamento() async {
-    final response = await http.get(Uri.parse('$baseUrl/detalhespagamento'));
+  // Future<List<DetalhePagamento>> fetchDetalhesPagamento() async {
+  //   final response = await http.get(Uri.parse('$baseUrl/detalhespagamento'));
 
-    if (response.statusCode == 200) {
-      List<dynamic> jsonList = jsonDecode(response.body);
-      return jsonList.map((json) => DetalhePagamento.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load detalhes pagamento');
+  //   if (response.statusCode == 200) {
+  //     List<dynamic> jsonList = jsonDecode(response.body);
+  //     return jsonList.map((json) => DetalhePagamento.fromJson(json)).toList();
+  //   } else {
+  //     throw Exception('Failed to load detalhes pagamento');
+  //   }
+  // }
+
+  Future<List<DetalhePagamento>> fetchDetalhesPagamento({required int pagamentoId}) async {
+      final response = await http.get(
+        Uri.parse('$baseUrl/detalhespagamento?pagamentoId=$pagamentoId'),
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => DetalhePagamento.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load payment details');
+      }
     }
-  }
+
 
   // Buscar um detalhe de pagamento por ID
   Future<DetalhePagamento> fetchDetalhePagamentoById(int id) async {

@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:app/models/AtendimentoDocument.dart';
-import 'package:app/models/AtendimentoItem.dart';
-import 'package:app/services/UserServiceBase64.dart';
-import 'package:app/ui/alocacao/AtendimentoDetailsPopup.dart';
+import 'dart:typed_data';
+import 'package:app/services/AtendimentoDocumentService.dart';
+import 'package:app/services/AtendimentoItemService.dart';
+import 'package:app/ui/user/UserDetailsPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/Allocation.dart';
@@ -33,19 +33,24 @@ class _ManageAlocarMotoristaPageState
     extends State<ManageAlocarMotoristaPage> with SingleTickerProviderStateMixin {
   final AtendimentoService _atendimentoService =
       AtendimentoService(dotenv.env['BASE_URL']!);
-
-  final ReservaService _reservaService =
-      ReservaService(dotenv.env['BASE_URL']);
- 
+  final ReservaService _reservaService = ReservaService(dotenv.env['BASE_URL']);
   final VeiculoServiceAdd _veiculoService =
       VeiculoServiceAdd(dotenv.env['BASE_URL']!);
-
   final UserService _userService = UserService(dotenv.env['BASE_URL']!);
+  final AtendimentoItemService _atendimentoServiceItens =
+      AtendimentoItemService(dotenv.env['BASE_URL']!);
+  final AtendimentoDocumentService _atendimentoServiceDocuments =
+      AtendimentoDocumentService(dotenv.env['BASE_URL']!);
+  final UserAtendimentoAllocationService _userAtendimentoAllocationService =
+      UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
 
-  var user,veiculo,state;
+  var user, veiculo, state;
+  late TabController _tabController;
 
   List<Atendimento> _atendimentos = [];
-  List<Atendimento> _filteredAtendimentos = [];
+  List<Atendimento> _activeAtendimentos = [];
+  List<Atendimento> _completedAtendimentos = [];
+   List<Atendimento> _filteredAtendimentos = [];
   bool _isLoading = false;
   String _searchQuery = '';
   bool _isGridView = true;
@@ -58,124 +63,104 @@ class _ManageAlocarMotoristaPageState
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _matriculaController = TextEditingController();
-  
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _fetchAtendimentos();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchAtendimentos() async {
-  if (_isLoading) return;
+    if (_isLoading) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    // Fetch all service records
-    List<Atendimento> atendimentos = await _atendimentoService.fetchAtendimentos();
+    try {
+      List<Atendimento> atendimentos = await _atendimentoService.fetchAtendimentos();
 
-    // Logging Service ID, ReserveID and state
-    for (var atendimento in atendimentos) {
-      print('Service ID: ${atendimento.id}, ReserveID: ${atendimento.reservaId}, State: ${atendimento.state}');
-
-      // Get associated reservation
-      var reserva = await _reservaService.getReservaById(atendimento.reservaId!);
-
-      // Get user associated with reservation
-      user = reserva.user;
-      if (user != null) {
-        print('User for Service ID ${atendimento.id}: ${user.firstName} ${user.lastName}');
-      } else {
-        print('User not found for Service ID ${atendimento.id}');
+      for (var atendimento in atendimentos) {
+        var reserva = await _reservaService.getReservaById(atendimento.reservaId!);
+        user = reserva.user;
+        veiculo = reserva.veiculo;
+        state = reserva.state;
       }
 
-      // Get vehicle associated with reservation
-      veiculo = reserva.veiculo;
-      if (veiculo != null) {
-        print('Vehicle for Service ID ${atendimento.id}: ${veiculo.matricula}');
-      } else {
-        print('Vehicle not found for Service ID ${atendimento.id}');
-      }
+      // Classificar atendimentos em ativos e completados
+      List<Atendimento> active = [];
+      List<Atendimento> completed = [];
 
-      // Assign reservation state to service record
-      state = reserva.state;
+      for (var atendimento in atendimentos) {
+        if (atendimento.dataChegada != null) {
+          int daysRemaining = _calculateDaysRemaining(atendimento.dataChegada!);
+          if (daysRemaining < 0) {
+            completed.add(atendimento);
+          } else {
+            active.add(atendimento);
+          }
+        } else {
+          active.add(atendimento);
         }
+      }
 
-    setState(() {
-      _atendimentos = atendimentos;
-      _filteredAtendimentos = atendimentos;
-      _isLoading = false;
-    });
-  } catch (e) {
-    print('Error fetching service records: $e');
-    setState(() => _isLoading = false);
+      setState(() {
+        _atendimentos = atendimentos;
+        _activeAtendimentos = active;
+        _completedAtendimentos = completed;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching service records: $e');
+      setState(() => _isLoading = false);
+    }
   }
-}
 
-Future<void> _selectDateRange(BuildContext context) async {
-  final DateTimeRange? picked = await showDateRangePicker(
-    context: context,
-    firstDate: DateTime(2000),
-    lastDate: DateTime(2100),
-    initialDateRange: _startDate != null && _endDate != null
-        ? DateTimeRange(start: _startDate!, end: _endDate!)
-        : null,
-  );
-
-  if (picked != null) {
-    setState(() {
-      _startDate = picked.start;
-      _endDate = picked.end;
-      _filterAtendimentos();
-    });
-  }
-}
-
-Future<void> _showDeleteConfirmationDialog(int atendimentoId) async {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content: const Text('Are you sure you want to delete this service record?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _deleteAtendimento(atendimentoId);
-              Navigator.of(context).pop();
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-Future<void> _deleteAtendimento(int atendimentoId) async {
-  try {
-    await _atendimentoService.deleteAtendimento(atendimentoId);
-    await _fetchAtendimentos();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Service record deleted successfully')),
-    );
-  } catch (e) {
-    print('Error deleting service record: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Failed to delete service record')),
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: CircularProgressIndicator(),
     );
   }
-}
 
-void _filterAtendimentos() {
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Text('No service records found'),
+    );
+  }
+
+  int _calculateDaysRemaining(DateTime dataChegada) {
+    final DateTime now = DateTime.now();
+    final Duration difference = dataChegada.difference(now);
+    final int daysRemaining = difference.inDays;
+
+    return daysRemaining;
+  }
+
+Widget _buildSearchField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
+    return SizedBox(
+      width: 200,
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          border: const OutlineInputBorder(),
+        ),
+        onChanged: (value) => _filterAtendimentos(),
+      ),
+    );
+  }
+
+  void _filterAtendimentos() {
   String destino = _destinoController.text.toLowerCase();
   String user = _userController.text.toLowerCase();
   String state = _stateController.text.toLowerCase();
@@ -200,13 +185,14 @@ void _filterAtendimentos() {
         }
       }
 
-      return atendimentoDestino.contains(destino) &&
-          atendimentoState.contains(state) &&
-          atendimentoMatricula.contains(matricula) &&
-          matchesDate;
-    }).toList();
-  });
-}
+        return atendimentoDestino.contains(destino) &&
+            atendimentoState.contains(state) &&
+            atendimentoMatricula.contains(matricula) &&
+            matchesDate;
+      }).toList();
+    });
+  }
+
 
   Widget _buildSearchFields() {
     return SingleChildScrollView(
@@ -229,132 +215,43 @@ void _filterAtendimentos() {
     );
   }
 
-  Widget _buildSearchField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-  }) {
-    return SizedBox(
-      width: 200,
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon),
-          border: const OutlineInputBorder(),
+  // ... [Mantenha todos os outros métodos existentes como estão, sem alterações] ...
+
+  Widget _buildTabContent(List<Atendimento> atendimentos) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: _buildSearchFields(),
         ),
-        onChanged: (value) => _filterAtendimentos(),
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Text('No service records found'),
-    );
-  }
-
-  int _calculateDaysRemaining(DateTime dataChegada) {
-    final DateTime now = DateTime.now();
-    final Duration difference = dataChegada.difference(now);
-    final int daysRemaining = difference.inDays;
-
-    return daysRemaining;
-  }
-
-  Widget _buildBlinkingAlert(String message, Color color) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([ValueNotifier(true)]),
-      builder: (context, child) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: Text(
-            message,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        );
-      },
-    );
-  }
-
-Future<void> showAtendimentoDetailsPopup(BuildContext context, int atendimentoId) async {
-  try {
-    final AtendimentoService atendimentoService = AtendimentoService(dotenv.env['BASE_URL']!);
-    final Map<String, dynamic> details = await atendimentoService.fetchAtendimentoDetails(atendimentoId);
-
-    final List<AtendimentoItem> items = details['items'];
-    final List<AtendimentoDocument> documents = details['documents'];
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AtendimentoDetailsPopup(
-          items: items,
-          documents: documents,
-        );
-      },
-    );
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to load service details: $error')),
-    );
-  }
-}
-
-void _showDriverDetailsDialog(int atendimentoId) async {
-  try {
-    UserAtendimentoAllocationService allocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
-    UserBase64 user = (await allocationService.getDriverForAtendimento(atendimentoId)) as UserBase64;
-
-    if (user.id == 0) {
-      throw Exception('Driver not associated with this service');
-    }
-
-    print('userId: ${user.id}');
-
-    UserServiceBase64 userService = UserServiceBase64(dotenv.env['BASE_URL']!);
-    UserBase64 motorista = await userService.getUserById(user.id);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Driver Details"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("ID: ${motorista.id}"),
-            Text("Name: ${motorista.firstName} ${motorista.lastName}"),
-            Text("Email: ${motorista.email}"),
-            Text("Phone 1: ${motorista.phone1 ?? 'Not provided'}"),
-            Text("Phone 2: ${motorista.phone2 ?? 'Not provided'}"),
-          ],
+        Expanded(
+          child: _isLoading
+              ? _buildLoadingIndicator()
+              : atendimentos.isEmpty
+                  ? _buildEmptyState()
+                  : _isGridView
+                      ? GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 16.0,
+                            mainAxisSpacing: 16.0,
+                          ),
+                          itemCount: atendimentos.length,
+                          itemBuilder: (context, index) {
+                            return _buildAtendimentoCard(atendimentos[index]);
+                          },
+                        )
+                      : ListView.builder(
+                          itemCount: atendimentos.length,
+                          itemBuilder: (context, index) {
+                            return _buildAtendimentoCard(atendimentos[index]);
+                          },
+                        ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close"),
-          ),
-        ],
-      ),
-    );
-  } catch (error) {
-    print('Error fetching driver details: $error');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error loading driver details')),
+      ],
     );
   }
-}
 
 void _showUserDetails({
   required int atendimentoId,
@@ -363,6 +260,7 @@ void _showUserDetails({
   required DateTime startDate,
   required DateTime endDate,
 }) {
+  
   final AllocationService allocationService = AllocationService(dotenv.env['BASE_URL']!);
   final UserAtendimentoAllocationService userAtendimentoAllocationService = UserAtendimentoAllocationService(baseUrl: dotenv.env['BASE_URL']!);
 
@@ -373,6 +271,9 @@ void _showUserDetails({
   List<UserBase64> allUsers = [];
 
   Future<void> allocateSelectedUsers() async {
+  print('Starting allocation process...');
+  print('Selected User IDs: $selectedUserIds');
+  
   try {
     final allocation = Allocation(
       startDate: startDate,
@@ -380,14 +281,20 @@ void _showUserDetails({
       destination: destination,
     );
 
+    print('Creating allocation with data: ${allocation.toJson()}');
     final createdAllocation = await allocationService.createAllocation(allocation);
-
+    
     if (createdAllocation.id == null) {
+      print('Allocation creation failed - no ID returned');
       throw Exception('Failed to create allocation');
     }
 
+    print('Allocation created with ID: ${createdAllocation.id}');
+    
     for (int userId in selectedUserIds) {
       try {
+        print('Processing user ID: $userId');
+        
         final userAtendimentoAllocation = UserAtendimentoAllocation(
           userId: userId,
           atendimentoId: atendimentoId,
@@ -396,6 +303,8 @@ void _showUserDetails({
           updatedAt: DateTime.now(),
         );
 
+        print('Creating association for user $userId with data: ${userAtendimentoAllocation.toJson()}');
+        
         await userAtendimentoAllocationService
             .createUserAtendimentoAllocation(userAtendimentoAllocation);
 
@@ -419,26 +328,28 @@ void _showUserDetails({
   }
 }
 
-showDialog(
-  context: context,
-  builder: (BuildContext context) {
-    return AlertDialog(
-      title: const Text('Allocate Drivers'),
-      content: SizedBox(
-        width: 600,
-        height: 600,
-        child: DefaultTabController(
-          length: 2,
-          child: Column(
-            children: [
-              const TabBar(
-                tabs: [
-                  Tab(text: 'Drivers'),
-                  Tab(text: 'Details'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Allocate Drivers'),
+        content: SizedBox(
+          width: 600,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ExpansionTile para os motoristas
+                ExpansionTile(
+                  initiallyExpanded: true,
+                  title: const Text(
+                    'Available Drivers',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
                   children: [
                     FutureBuilder<List<UserBase64>>(
                       future: _fetchUsers(),
@@ -450,7 +361,7 @@ showDialog(
                         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return const Center(child: Text('No drivers found.'));
                         } else {
-                          final allUsers = snapshot.data!;
+                          allUsers = snapshot.data!;
                           filteredUsers = List.from(allUsers);
 
                           return StatefulBuilder(
@@ -466,38 +377,61 @@ showDialog(
                                         prefixIcon: Icon(Icons.search),
                                         border: OutlineInputBorder(),
                                       ),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            filteredUsers = allUsers.where((user) {
-                                              final query = value.toLowerCase();
-                                              final fullName = '${user.firstName} ${user.lastName}'.toLowerCase();
-                                              return fullName.contains(query);
-                                            }).toList();
-                                          });
+                                      onChanged: (value) {
+                                        setState(() {
+                                          filteredUsers = allUsers.where((user) {
+                                            final query = value.toLowerCase();
+                                            final fullName = '${user.firstName} ${user.lastName}'.toLowerCase();
+                                            return fullName.contains(query);
+                                          }).toList();
+                                        });
                                       },
                                     ),
                                   ),
-                                  Expanded(
-                                    child: ListView.builder(
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 300,
+                                    child: ListView.separated(
+                                      shrinkWrap: true,
                                       itemCount: filteredUsers.length,
+                                      separatorBuilder: (context, index) => const SizedBox(height: 8),
                                       itemBuilder: (context, index) {
                                         final user = filteredUsers[index];
                                         final isSelected = selectedUserIds.contains(user.id);
 
-                                        return CheckboxListTile(
-                                          title: Text('${user.firstName} ${user.lastName}'),
-                                          subtitle: Text('ID: ${user.id}'),
-                                          tileColor: index.isEven ? const Color.fromARGB(255, 12, 12, 12) : const Color.fromARGB(190, 75, 74, 74),
-                                          value: isSelected,
-                                          onChanged: (bool? value) {
-                                            setState(() {
-                                              if (value == true) {
-                                                selectedUserIds.add(user.id);
-                                              } else {
-                                                selectedUserIds.remove(user.id);
-                                              }
-                                            });
-                                          },
+                                        return Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[200],
+                                            borderRadius: BorderRadius.circular(8),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.05),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: CheckboxListTile(
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                            title: Text(
+                                              '[${user.id}] ${user.firstName} ${user.lastName}',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 15,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                            value: isSelected,
+                                            onChanged: (bool? value) {
+                                              setState(() {
+                                                if (value == true) {
+                                                  selectedUserIds.add(user.id);
+                                                } else {
+                                                  selectedUserIds.remove(user.id);
+                                                }
+                                              });
+                                            },
+                                          ),
                                         );
                                       },
                                     ),
@@ -509,56 +443,71 @@ showDialog(
                         }
                       },
                     ),
-                    SingleChildScrollView(
+                  ],
+                ),
+                
+                // ExpansionTile para os detalhes
+                ExpansionTile(
+                  title: const Text(
+                    'Service Details',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Service ID: $atendimentoId'),
-                          Text('Destination: $destination'),
-                          Text('Plate: $plate'),
-                          Text('Start Date: ${startDate.toLocal()}'),
-                          Text('End Date: ${endDate.toLocal()}'),
+                          _buildDetailRow(Icons.numbers, 'Service ID:', '$atendimentoId'),
+                          _buildDetailRow(Icons.place, 'Destination:', destination),
+                          _buildDetailRow(Icons.directions_car, 'License Plate:', plate),
+                          _buildDetailRow(Icons.date_range, 'Start Date:', DateFormat('dd/MM/yyyy').format(startDate)),
+                          _buildDetailRow(Icons.date_range, 'End Date:', DateFormat('dd/MM/yyyy').format(endDate)),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            if (selectedUserIds.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No drivers selected')),
-              );
-              return;
-            }
+        actions: [
+          TextButton(
+            onPressed: () async {
+              if (selectedUserIds.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('No drivers selected')),
+                );
+                return;
+              }
 
-            await allocateSelectedUsers();
-            Navigator.of(context).pop();
-          },
-          child: const Text('Allocate'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: const Text('Close'),
-        ),
-      ],
-    );
-  },
-);
+              await allocateSelectedUsers();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Allocate'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 Future<List<UserBase64>> _fetchUsers() async {
   print('Starting user search...');
   try {
-    var response = await _userService.getUsers();
+    var response = await _userService.getAllMotoristas();
+    // var response = await _userService.getUsers();
     print('User service response: $response');
 
     print('Response is a user list');
@@ -579,141 +528,6 @@ Future<List<UserBase64>> _fetchUsers() async {
     print('Error fetching users: $e');
     return [];
   }
-}
-
-Future<bool> updateAtendimentoKmFinal(int atendimentoId, double kmFinal, String returnDateText) async {
-  try {
-    if (atendimentoId == 0) {
-      throw Exception('Invalid service ID. Cannot update.');
-    }
-
-    DateTime dataDevolucao = DateTime.parse(returnDateText);
-
-    await _atendimentoService.updateKmFinal(
-      atendimentoId: atendimentoId,
-      kmFinal: kmFinal,
-      dataDevolucao: dataDevolucao,
-    );
-
-    print('Final mileage and return date updated successfully for service $atendimentoId.');
-    return true;
-  } catch (e) {
-    print('Error updating final mileage and return date: $e');
-    return false;
-  }
-}
-
-void _confirmReturn(BuildContext context, int atendimentoid, double kmFinal, String returnDateText) async {
-  try {
-    final response = await updateAtendimentoKmFinal(atendimentoid, kmFinal,returnDateText);
-
-    if (response) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vehicle return confirmed successfully!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to confirm vehicle return.')),
-      );
-    }
-  } catch (error) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $error')),
-    );
-  }
-}
-
-void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
-  final TextEditingController obsController = TextEditingController();
-
-  Veiculo? veiculo;
-  try {
-    veiculo = await _veiculoService.getVeiculoByMatricula(matricula);
-    if (veiculo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vehicle not found!')),
-      );
-      return;
-    }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error fetching vehicle: $e')),
-    );
-    return;
-  }
-
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Send Vehicle for Maintenance'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Vehicle License Plate: $matricula',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: obsController,
-                decoration: const InputDecoration(
-                  labelText: 'Observations (optional)',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 5,
-                keyboardType: TextInputType.multiline,
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              EnviaManutencao manutencao = EnviaManutencao(
-                obs: obsController.text,
-                veiculoID: veiculo!.id,
-                oficinaID: 1,
-                atendimentoID: atendimentoID,
-              );
-
-              print('Maintenance request created:');
-              print('obs: ${manutencao.obs}');
-              print('veiculoID: ${manutencao.veiculoID}');
-              print('oficinaID: ${manutencao.oficinaID}');
-              print('atendimentoID: ${manutencao.atendimentoID}');
-
-              try {
-                EnviaManutencaoService service = EnviaManutencaoService(dotenv.env['BASE_URL']!);
-                await service.createEnviaManutencao(manutencao);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vehicle sent for maintenance successfully!')),
-                );
-
-                Navigator.of(context).pop();
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error sending vehicle for maintenance: $e')),
-                );
-              }
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      );
-    },
-  );
 }
 
 void _showConfirmReturnDialog(Atendimento atendimento) {
@@ -811,6 +625,610 @@ void _showConfirmReturnDialog(Atendimento atendimento) {
 );
 }
 
+void _showSendToMaintenanceDialog(int atendimentoID, String matricula) async {
+  final TextEditingController obsController = TextEditingController();
+
+  Veiculo? veiculo;
+  try {
+    veiculo = await _veiculoService.getVeiculoByMatricula(matricula);
+    if (veiculo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vehicle not found!')),
+      );
+      return;
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching vehicle: $e')),
+    );
+    return;
+  }
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Send Vehicle for Maintenance'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Vehicle License Plate: $matricula',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: obsController,
+                decoration: const InputDecoration(
+                  labelText: 'Observations (optional)',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 5,
+                keyboardType: TextInputType.multiline,
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              EnviaManutencao manutencao = EnviaManutencao(
+                obs: obsController.text,
+                veiculoID: veiculo!.id,
+                oficinaID: 1,
+                atendimentoID: atendimentoID,
+              );
+
+              print('Maintenance request created:');
+              print('obs: ${manutencao.obs}');
+              print('veiculoID: ${manutencao.veiculoID}');
+              print('oficinaID: ${manutencao.oficinaID}');
+              print('atendimentoID: ${manutencao.atendimentoID}');
+
+              try {
+                EnviaManutencaoService service = EnviaManutencaoService(dotenv.env['BASE_URL']!);
+                await service.createEnviaManutencao(manutencao);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Vehicle sent for maintenance successfully!')),
+                );
+
+                Navigator.of(context).pop();
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error sending vehicle for maintenance: $e')),
+                );
+              }
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<bool> updateAtendimentoKmFinal(int atendimentoId, double kmFinal, String returnDateText) async {
+  try {
+    if (atendimentoId == 0) {
+      throw Exception('Invalid service ID. Cannot update.');
+    }
+
+    DateTime dataDevolucao = DateTime.parse(returnDateText);
+
+    await _atendimentoService.updateKmFinal(
+      atendimentoId: atendimentoId,
+      kmFinal: kmFinal,
+      dataDevolucao: dataDevolucao,
+    );
+
+    print('Final mileage and return date updated successfully for service $atendimentoId.');
+    return true;
+  } catch (e) {
+    print('Error updating final mileage and return date: $e');
+    return false;
+  }
+}
+
+void _confirmReturn(BuildContext context, int atendimentoid, double kmFinal, String returnDateText) async {
+  try {
+    final response = await updateAtendimentoKmFinal(atendimentoid, kmFinal,returnDateText);
+
+    if (response) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vehicle return confirmed successfully!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to confirm vehicle return.')),
+      );
+    }
+  } catch (error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $error')),
+    );
+  }
+}
+
+Future<void> _deleteAtendimento(int atendimentoId) async {
+  try {
+    await _atendimentoService.deleteAtendimento(atendimentoId);
+    await _fetchAtendimentos();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Service record deleted successfully')),
+    );
+  } catch (e) {
+    print('Error deleting service record: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to delete service record')),
+    );
+  }
+}
+
+Future<void> _showDeleteConfirmationDialog(int atendimentoId) async {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: const Text('Are you sure you want to delete this service record?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await _deleteAtendimento(atendimentoId);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<Map<String, dynamic>> _fetchItemsAndDocuments(int atendimentoId) async {
+  try {
+    final items = await _atendimentoServiceItens.fetchAtendimentoItem(atendimentoId);
+    final documents = await _atendimentoServiceDocuments.fetchAtendimentoDocument(atendimentoId);
+    return {
+      'items': items,
+      'documents': documents,
+    };
+  } catch (e) {
+    print('Error fetching items and documents: $e');
+    return {
+      'items': [],
+      'documents': [],
+    };
+  }
+}
+
+Widget _buildItemsAndDocumentsSection(int atendimentoId) {
+  return FutureBuilder<Map<String, dynamic>>(
+    future: _fetchItemsAndDocuments(atendimentoId),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      
+      if (snapshot.hasError) {
+        return Text('Error: ${snapshot.error}');
+      }
+      
+      final items = snapshot.data?['items'] ?? [];
+      final documents = snapshot.data?['documents'] ?? [];
+      
+      return Column(
+        children: [
+          // Seção de Items
+          ExpansionTile(
+            title: const Text(
+              'Listed items',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            children: [
+              if (items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'No items found',
+                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Colors.blue[400],
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            item.itemDescription ?? 'No description',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+
+          // Seção de Documents
+          ExpansionTile(
+            title: const Text(
+              'Listed Documents',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            children: [
+              if (documents.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'No documents found',
+                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: documents.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final doc = documents[index];
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Colors.blue[400],
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            doc.itemDescription ?? 'No description',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          trailing: doc.image != null && doc.image!.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.remove_red_eye, color: Colors.blue),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Text(doc.itemDescription ?? 'Document Preview'),
+                                        content: SingleChildScrollView(
+                                          child: InteractiveViewer(
+                                            panEnabled: true,
+                                            boundaryMargin: const EdgeInsets.all(20),
+                                            minScale: 0.5,
+                                            maxScale: 4.0,
+                                            child: Image.memory(doc.image!),
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(context).pop(),
+                                            child: const Text('Close'),
+                                          ),
+                                        ],
+                                        contentPadding: const EdgeInsets.all(20),
+                                        insetPadding: const EdgeInsets.all(20),
+                                      ),
+                                    );
+                                  },
+                                )
+                              : null,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+
+          // Seção para Motoristas Alocados
+        ExpansionTile(
+        title: const Text(
+          'Assigned Drivers',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
+        ),
+        children: [
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _userAtendimentoAllocationService.getUserDetailsByAtendimentoId(atendimentoId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'Error loading drivers',
+                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                );
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'No drivers assigned',
+                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                );
+              } else {
+                final drivers = snapshot.data!;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: drivers.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final driver = drivers[index];
+                      return InkWell(
+                        onTap: () {
+                          final user = UserBase64(
+                            id: driver['id'],
+                            username: driver['email'] ?? '',
+                            firstName: driver['nome']?.split(' ').first ?? '',
+                            lastName: driver['nome']?.split(' ').length > 1 
+                                ? driver['nome']?.split(' ').last ?? ''
+                                : '',
+                            email: driver['email'] ?? '',
+                            phone1: driver['telefone'] ?? '',
+                            phone2: driver['telefoneAlternativo'] ?? '',
+                            imgBase64: driver['imagem'],
+                            gender: driver['gender'] ?? '',
+                            birthdate: driver['birthdate'] ?? '',
+                          );
+                          
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => UserDetailsPage(user: user),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            leading: CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.green[400],
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            title: Text(
+                              driver['nome'] ?? 'No name',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                color: Colors.black87),
+                            ),
+                            subtitle: Text(
+                              driver['telefone'] ?? 'No phone',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.black),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (driver['imagem'] != null)
+                                  CircleAvatar(
+                                    backgroundImage: MemoryImage(base64Decode(driver['imagem'])),
+                                    radius: 20,
+                                  )
+                                else
+                                  const CircleAvatar(
+                                    radius: 20,
+                                    child: Icon(Icons.person, size: 20),
+                                  ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _confirmRemoveDriver(atendimentoId, driver['id']),
+                                  tooltip: 'Remove driver',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _confirmRemoveDriver(int atendimentoId, int userId) async {
+  bool confirm = await showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Confirm Removal'),
+        content: const Text('Are you sure you want to remove this driver assignment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (confirm == true) {
+    try {
+      // Primeiro precisamos obter o ID da associação
+      final allocations = await _userAtendimentoAllocationService.getAllUserAtendimentoAllocations();
+      
+      // Encontrar a alocação específica para este atendimento e usuário
+      final allocation = allocations.firstWhere(
+        (alloc) => alloc.atendimentoId == atendimentoId && alloc.userId == userId,
+        orElse: () => UserAtendimentoAllocation(
+          id: 0, // Valor inválido se não encontrado
+          userId: 0,
+          atendimentoId: 0,
+          allocationId: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+
+      if (allocation.id != 0) {
+        await _userAtendimentoAllocationService.deleteUserAtendimentoAllocationByUserId(userId);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Driver assignment removed successfully')),
+        );
+        
+        // Atualizar a lista de motoristas
+        setState(() {});
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assignment not found')),
+        );
+      }
+    } catch (e) {
+      print('Error removing driver assignment: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to remove assignment: ${e.toString()}')),
+      );
+    }
+  }
+}
+
+Widget _buildBlinkingAlert(String message, Color color) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([ValueNotifier(true)]),
+      builder: (context, child) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Text(
+            message,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        );
+      },
+    );
+  }
+
 Widget _buildAtendimentoCard(Atendimento atendimento) {
   final DateTime? dataChegada = atendimento.dataChegada;
 
@@ -868,42 +1286,56 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
                 'Destination: ${atendimento.destino ?? 'N/A'}',
                 style: const TextStyle(fontSize: 14),
               ),
+              Text(
+                'User: ${user.firstName ?? 'N/A'}',
+                style: const TextStyle(fontSize: 14),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.person_add, color: Colors.blue, size: 20),
+                    onPressed: () async {
+                      try {
+                        _showUserDetails(
+                          atendimentoId: atendimento.id!,
+                          destination: atendimento.destino!,
+                          plate: veiculo.matricula,
+                          startDate: atendimento.dataSaida!,
+                          endDate: atendimento.dataChegada!,
+                        );
+                        print('User details displayed successfully.');
+                      } catch (error) {
+                        print('Error loading user details: $error');
+                      }
+                    },
+                    tooltip: 'Assign Driver',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    onPressed: () => _showConfirmReturnDialog(atendimento),
+                    tooltip: 'Confirm Return',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.car_crash, color: Colors.orange, size: 20),
+                    onPressed: () => _showSendToMaintenanceDialog(atendimento.id!, veiculo.matricula),
+                    tooltip: 'Send for Maintenance',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                    onPressed: () => _showDeleteConfirmationDialog(atendimento.id!),
+                    tooltip: 'Delete Service',
+                  ),
+                ],
+              ),
+              _buildItemsAndDocumentsSection(atendimento.id!),
             ],
           ),
         ),
       ],
     ),
-    subtitle: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'User: ${user.firstName ?? 'N/A'}',
-          style: const TextStyle(fontSize: 14),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.person_2, color: Color.fromARGB(255, 45, 116, 163)),
-                onPressed: () {
-                  _atendimentoService.fetchReserveIdAndUserDetails(atendimento.reservaId!);
-                },
-                tooltip: 'View Assigned Driver',
-              ),
-              IconButton(
-                icon: const Icon(Icons.list, color: Colors.teal),
-                onPressed: () async {
-                  await showAtendimentoDetailsPopup(context, atendimento.id!);
-                },
-                tooltip: 'View Items Details',
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
+
+
     trailing: isBlinking
         ? _buildBlinkingAlert(daysRemainingMessage, circleColor)
         : Container(
@@ -952,47 +1384,6 @@ Widget _buildAtendimentoCard(Atendimento atendimento) {
           ],
         ),
       ),
-      Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.person_add, color: Colors.blue),
-              onPressed: () async {
-                try {
-                  _showUserDetails(
-                    atendimentoId: atendimento.id!,
-                    destination: atendimento.destino!,
-                    plate: veiculo.matricula,
-                    startDate: atendimento.dataSaida!,
-                    endDate: atendimento.dataChegada!,
-                  );
-                  print('User details displayed successfully.');
-                } catch (error) {
-                  print('Error loading user details: $error');
-                }
-              },
-              tooltip: 'Assign Driver',
-            ),
-            IconButton(
-              icon: const Icon(Icons.check_circle, color: Colors.green),
-              onPressed: () => _showConfirmReturnDialog(atendimento),
-              tooltip: 'Confirm Return',
-            ),
-            IconButton(
-              icon: const Icon(Icons.car_crash, color: Colors.orange),
-              onPressed: () => _showSendToMaintenanceDialog(atendimento.id!, veiculo.matricula),
-              tooltip: 'Send for Maintenance',
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _showDeleteConfirmationDialog(atendimento.id!),
-              tooltip: 'Delete Service',
-            ),
-          ],
-        ),
-      ),
     ],
   ),
 );
@@ -1006,7 +1397,11 @@ Widget _buildDetailRow(IconData icon, String label, String value) {
         Icon(icon, size: 16, color: Colors.grey),
         const SizedBox(width: 8),
         Text(
-          '$label $value',
+          '$label ',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          value,
           style: const TextStyle(fontSize: 14),
         ),
       ],
@@ -1016,58 +1411,38 @@ Widget _buildDetailRow(IconData icon, String label, String value) {
 
   @override
   Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Vehicles in Service and Allocations'),
-      actions: [
-        IconButton(
-          icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
-          onPressed: () {
-            setState(() {
-              _isGridView = !_isGridView;
-            });
-          },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Vehicles in Service and Allocations'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Active Services'),
+            Tab(text: 'Completed Services'),
+          ],
         ),
-      ],
-    ),
-    body: Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: _buildSearchFields(),
-        ),
-        Expanded(
-          child: _isLoading
-              ? _buildLoadingIndicator()
-              : _filteredAtendimentos.isEmpty
-                  ? _buildEmptyState()
-                  : _isGridView
-                      ? GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 16.0,
-                            mainAxisSpacing: 16.0,
-                          ),
-                          itemCount: _filteredAtendimentos.length,
-                          itemBuilder: (context, index) {
-                            return _buildAtendimentoCard(
-                                _filteredAtendimentos[index]);
-                          },
-                        )
-                      : ListView.builder(
-                          itemCount: _filteredAtendimentos.length,
-                          itemBuilder: (context, index) {
-                            return _buildAtendimentoCard(
-                                _filteredAtendimentos[index]);
-                          },
-                        ),
-        ),
-      ],
-    ),
-  );
+        actions: [
+          IconButton(
+            icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
+            onPressed: () {
+              setState(() {
+                _isGridView = !_isGridView;
+              });
+            },
+          ),
+        ],
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildTabContent(_activeAtendimentos),
+          _buildTabContent(_completedAtendimentos),
+        ],
+      ),
+    );
+  }
 }
-}
+
 
 class VeiculoService {
   Future<Veiculo> getVeiculoByMatricula(String matricula) async {
@@ -1089,5 +1464,31 @@ class UserServiceDetails {
     } else {
       throw Exception('Failed to load vehicle');
     }
+  }
+}
+
+class DocumentPreviewPage extends StatelessWidget {
+  final String documentName;
+  final Uint8List documentData;
+
+  const DocumentPreviewPage({
+    required this.documentName,
+    required this.documentData,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(documentName),
+      ),
+      body: Center(
+        child: Image.memory(
+          documentData,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
   }
 }

@@ -81,6 +81,7 @@ class PaymentsTab extends StatelessWidget {
               DataColumn(label: Text('Date')),
               DataColumn(label: Text('Service ID')),
               DataColumn(label: Text('User ID')),
+              DataColumn(label: Text('Driver')),
               DataColumn(label: Text('Payment Criteria ID')),
               DataColumn(label: Text('Actions')),
             ],
@@ -102,6 +103,7 @@ class PaymentsTab extends StatelessWidget {
                   DataCell(Text(DateFormat('MM/dd/yyyy').format(payment.data))),
                   DataCell(Text(payment.atendimentoId.toString())),
                   DataCell(Text(payment.userId.toString())),
+                  DataCell(Text(payment.userName.toString())), // Usa o nome do usuário aqui
                   DataCell(Text(payment.criterioPagamentoId.toString())),
                   DataCell(
                     Row(
@@ -185,7 +187,7 @@ class PaymentDetails extends StatelessWidget {
                     ),
                   ),
                   FutureBuilder<List<DetalhePagamento>>(
-                    future: paymentDetailsService.fetchDetalhesPagamento(),
+                    future: paymentDetailsService.fetchDetalhesPagamento(pagamentoId: 15),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());

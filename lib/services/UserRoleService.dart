@@ -9,6 +9,9 @@ class UserRoleService {
 
   // Método para atribuir um papel a um usuário
   Future<UserRole?> assignRoleToUser(int userId, int roleId) async {
+    print('[DEBUG] assignRoleToUser() iniciado');
+    print('[DEBUG] User ID: $userId, Role ID: $roleId');
+    
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/userrole'),
@@ -19,14 +22,18 @@ class UserRoleService {
         }),
       );
 
+      print('[DEBUG] Resposta do servidor - Status: ${response.statusCode}');
+      print('[DEBUG] Resposta do servidor - Body: ${response.body}');
+
       if (response.statusCode == 201) {
+        print('[DEBUG] Role atribuída com sucesso');
         return UserRole.fromJson(jsonDecode(response.body));
       } else {
-        print('Failed to assign role: ${response.body}');
+        print('[ERROR] Falha ao atribuir role: ${response.body}');
         return null;
       }
     } catch (error) {
-      print('Error assigning role: $error');
+      print('[ERROR] Exceção em assignRoleToUser: $error');
       return null;
     }
   }
@@ -66,20 +73,27 @@ Future<List<Role>> getRolesByUserId(int userId) async {
 
   // Método para remover todas as roles de um usuário
   Future<bool> removeAllRolesFromUser(int userId) async {
+    print('[DEBUG] removeAllRolesFromUser() iniciado');
+    print('[DEBUG] User ID: $userId');
+    
     try {
-      final response =
-          await http.delete(Uri.parse('$baseUrl/userrole/user/$userId'));
+      final response = await http.delete(
+        Uri.parse('$baseUrl/userrole/user/$userId'),
+      );
+
+      print('[DEBUG] Resposta do servidor - Status: ${response.statusCode}');
+      print('[DEBUG] Resposta do servidor - Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        print('All roles removed successfully for user ID: $userId');
+        print('[DEBUG] Todas as roles removidas com sucesso para o usuário ID: $userId');
         return true;
       } else {
-        print('Failed to remove roles: ${response.body}');
+        print('[ERROR] Falha ao remover roles: ${response.body}');
         return false;
       }
     } catch (error) {
-      print('Error removing roles: $error');
+      print('[ERROR] Exceção em removeAllRolesFromUser: $error');
       return false;
     }
-  } 
+  }
 }

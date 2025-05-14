@@ -84,4 +84,27 @@ class UserBase64 {
       
     );
   }
+
+  Map<String, dynamic> toJson() {
+  return {
+    'id': id,
+    'username': username,
+    'firstName': firstName,
+    'lastName': lastName,
+    'gender': gender,
+    'birthdate': birthdate.toIso8601String(),
+    'email': email,
+    'address': address,
+    'neighborhood': neighborhood,
+    'phone1': phone1,
+    'phone2': phone2,
+    'password': password,
+    'state': state,
+    'imgBase64': imgBase64,
+    'createdAt': createdAt?.toIso8601String(),
+    'updatedAt': updatedAt?.toIso8601String(),
+    'roles': roles?.map((role) => role.toJson()).toList(),
+  };
+}
+
 }

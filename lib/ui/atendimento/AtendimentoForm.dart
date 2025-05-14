@@ -237,7 +237,7 @@ Future<void> _fetchItensEntrega() async {
     return Dialog(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Atendimento Form'),  // Título da barra
+          title: const Text('Service'),  // Título da barra
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),

@@ -1222,7 +1222,7 @@ class PagamentosTab extends StatelessWidget {
                                   title: const Text('Payment Details'),
                                   content: SizedBox(
                                     width: double.maxFinite,
-                                    child: PaymentDetails(pagamentoId: pagamento.id!), // Passa o ID aqui
+                                    child: PaymentDetails(),
                                   ),
                                   actions: [
                                     TextButton(
@@ -1251,117 +1251,74 @@ class PagamentosTab extends StatelessWidget {
 }
 
 class PaymentDetails extends StatelessWidget {
-  final int pagamentoId;
   final DetalhePagamentoService paymentDetailsService = DetalhePagamentoService(dotenv.env['BASE_URL']!);
-  final AtendimentoService atendimentoService = AtendimentoService(dotenv.env['BASE_URL']!);
-  final PagamentoService pagamentoService = PagamentoService(dotenv.env['BASE_URL']!);
-
-  PaymentDetails({required this.pagamentoId});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 2, // Number of tabs
       child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.8,
-        height: MediaQuery.of(context).size.height * 0.7,
+        width: MediaQuery.of(context).size.width * 0.25,
+        height: MediaQuery.of(context).size.height * 0.5,
         child: Column(
           children: [
+            // Tab bar
             const TabBar(
               tabs: [
                 Tab(text: 'General Information'),
                 Tab(text: 'Payment Details'),
               ],
             ),
+            // Tab content
             Expanded(
               child: TabBarView(
                 children: [
-                  // Primeira aba: Informações gerais (Pagamento + Atendimento)
-                  FutureBuilder(
-                    future: Future.wait([
-                      pagamentoService.fetchPagamentoById(pagamentoId),
-                      atendimentoService.fetchAtendimentoByPagamentoId(15),
-                    ]),
-                    builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        return Center(child: Text('Error: ${snapshot.error}'));
-                      }
-                      if (!snapshot.hasData) {
-                        return const Center(child: Text('No data available'));
-                      }
-
-                      final pagamento = snapshot.data![0] as Pagamento;
-                      final atendimento = snapshot.data![1] as Atendimento;
-
-                      return SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Seção de informações do pagamento
-                            Card(
-                              elevation: 3,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Payment Information',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildInfoRow('Payment ID:', pagamento.id.toString()),
-                                    _buildInfoRow('Total Amount:', '\$${pagamento.valorTotal.toStringAsFixed(2)}'),
-                                    _buildInfoRow('Payment Date:', DateFormat('MMM dd, yyyy').format(pagamento.data)),
-                                    _buildInfoRow('Payment Criteria:', pagamento.criterioPagamentoId.toString()),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 20),
-                            
-                            // Seção de informações do atendimento
-                            Card(
-                              elevation: 3,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Service Information',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildInfoRow('Service ID:', atendimento.id.toString()),
-                                    _buildInfoRow('Status:', atendimento.state),
-                                    _buildInfoRow('Client ID:', atendimento.userId.toString()),
-                                    // _buildInfoRow('Created At:', DateFormat('MMM dd, yyyy').format(atendimento.destino)),
-                                    // Adicione mais campos conforme necessário
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
+                  // First tab content (General Information)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payment Summary',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                      );
-                    },
+                        const SizedBox(height: 16),
+                        _buildInfoCard(),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            // Redirect to payment form
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PaymentForm(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.payment, size: 18),
+                              SizedBox(width: 8),
+                              Text('PROCEED TO PAYMENT'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-
-                  // Segunda aba: Detalhes do pagamento
+                  
+                  // Second tab content (Payment Details)
                   FutureBuilder<List<DetalhePagamento>>(
-                    future: paymentDetailsService.fetchDetalhesPagamento(pagamentoId: pagamentoId),
+                    future: paymentDetailsService.fetchDetalhesPagamento(pagamentoId: 15),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -1372,17 +1329,17 @@ class PaymentDetails extends StatelessWidget {
                       }
 
                       final paymentDetailsList = snapshot.data!;
-                      return Padding(
-                        padding: const EdgeInsets.all(16),
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
                         child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
+                          scrollDirection: Axis.vertical,
                           child: DataTable(
                             columnSpacing: 16.0,
                             columns: const [
                               DataColumn(label: Text('ID')),
                               DataColumn(label: Text('Amount'), numeric: true),
                               DataColumn(label: Text('Payment Date')),
-                              DataColumn(label: Text('Method')),
+                              DataColumn(label: Text('Payment ID')),
                               DataColumn(label: Text('Status')),
                             ],
                             rows: paymentDetailsList.map((detail) {
@@ -1391,6 +1348,16 @@ class PaymentDetails extends StatelessWidget {
                                   DataCell(Text(detail.id.toString())),
                                   DataCell(Text('\$${detail.valorPagamento.toStringAsFixed(2)}')),
                                   DataCell(Text(DateFormat('MMM dd, yyyy').format(detail.dataPagamento))),
+                                  DataCell(Text(detail.pagamentoId.toString())),
+                                  DataCell(
+                                    Chip(
+                                      label: Text(
+                                        'Completed',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  ),
                                 ],
                               );
                             }).toList(),
@@ -1407,26 +1374,6 @@ class PaymentDetails extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Flexible(child: Text(value)),
-        ],
-      ),
-    );
-  }
-}
 
   Widget _buildInfoCard() {
     return Card(
@@ -1466,6 +1413,7 @@ class PaymentDetails extends StatelessWidget {
       ),
     );
   }
+}
 
 // Example PaymentForm class (you should replace with your actual form)
 class PaymentForm extends StatelessWidget {

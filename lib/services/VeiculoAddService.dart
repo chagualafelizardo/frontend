@@ -42,7 +42,7 @@ class VeiculoServiceAdd {
 
  // Método para atualizar um veículo
   Future<void> updateVeiculo(VeiculoAdd veiculo) async {
-    final url = Uri.parse('$baseUrl/veiculos/${veiculo.id}');
+    final url = Uri.parse('$baseUrl/veiculo/${veiculo.id}');
     final response = await http.put(
       url,
       headers: {'Content-Type': 'application/json'},

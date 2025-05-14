@@ -54,4 +54,19 @@ class AtendimentoDocumentService {
       throw Exception('Failed to delete atendimento document');
     }
   }
+
+  Future<List<AtendimentoDocument>> fetchAtendimentoDocument(int atendimentoId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/atendimentoDocument/$atendimentoId/documents'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      List<dynamic> jsonResponse = json.decode(response.body);
+      return jsonResponse.map((doc) => AtendimentoDocument.fromJson(doc)).toList();
+    } else {
+      throw Exception('Failed to load atendimento documents');
+    }
+  }
+
 }

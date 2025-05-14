@@ -10,9 +10,11 @@ import 'package:app/services/AtendimentoDocumentService.dart';
 import 'package:app/ui/alocacao/ManageAlocarMotoristaPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:app/services/VeiculoService.dart' as VeiculoService;
 
 class AtendimentoService {
   final String? baseUrl = dotenv.env['BASE_URL'];
+  final VeiculoService.VeiculoService veiculoService = VeiculoService.VeiculoService(dotenv.env['BASE_URL']!);
 
   AtendimentoService(String s); // URL da API
 
@@ -60,6 +62,18 @@ class AtendimentoService {
   }
 }
 
+Future<Atendimento> fetchAtendimentoByPagamentoId(int pagamentoId) async {
+  final response = await http.get(Uri.parse('$baseUrl/atendimento/$pagamentoId'));
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    if (data is List && data.isNotEmpty) {
+      return Atendimento.fromJson(data[0]);
+    }
+    throw Exception('No atendimento found for this payment');
+  } else {
+    throw Exception('Failed to load atendimento');
+  }
+}
 
 Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
   try {
@@ -75,7 +89,7 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
 
       // Buscar itens do atendimento
       final responseItems = await http.get(
-        Uri.parse('$baseUrl/atendimento/$atendimentoId/items'),
+        Uri.parse('$baseUrl/atendimentoItem/$atendimentoId/items'),
       );
       final List<dynamic> itemsJson = jsonDecode(responseItems.body);
       final List<AtendimentoItem> items = itemsJson
@@ -84,7 +98,7 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
 
       // Buscar documentos do atendimento
       final responseDocuments = await http.get(
-        Uri.parse('$baseUrl/atendimento/$atendimentoId/documents'),
+        Uri.parse('$baseUrl/atendimentoDocument/$atendimentoId/documents'),
       );
       final List<dynamic> documentsJson = jsonDecode(responseDocuments.body);
       final List<AtendimentoDocument> documents = documentsJson
@@ -105,7 +119,6 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
     throw Exception('Failed to fetch atendimento details: $error');
   }
 }
-
 
   // Métodos existentes do AtendimentoService...
   Future<void> allocateDriver(int atendimentoId, int driverId) async {
@@ -257,29 +270,50 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
           print('Exception occurred in updateInService: $e');
           throw Exception('Failed to update inService');
         }
-}
+  }
+
+/* Atualizar o estado de um veículo que esta sendo confirmando como alugado ou em servico*/
+  Future<bool> updateVehicleState(int veiculoId, String newState) async {
+    final url = Uri.parse('$baseUrl/veiculo/state/$veiculoId');
+
+    print('[INFO] Iniciando atualização do estado do veículo...');
+    print('[INFO] URL: $url');
+    print('[INFO] Dados enviados: ${jsonEncode({'state': newState})}');
+
+    try {
+      final response = await http.put(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'state': newState}),
+      );
+
+      print('[INFO] Código de status da resposta: ${response.statusCode}');
+      print('[INFO] Corpo da resposta: ${response.body}');
+
+      if (response.statusCode == 200) {
+        print('[SUCESSO] Estado do veículo atualizado com sucesso.');
+        return true;
+      } else {
+        print('[ERRO] Falha ao atualizar estado do veículo. Resposta: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('[EXCEÇÃO] Ocorreu um erro ao tentar atualizar o estado do veículo: $e');
+      return false;
+    }
+  }
 
  Future<void> addCompleteAtendimento(
-  DateTime dateTime, {
-  required DateTime dataSaida,
-  required DateTime dataChegada,
-  required String destino,
-  required double kmInicial,
-  required int reserveID,
-  required List<String> checkedItems,
-  required List<Map<String, dynamic>> documents,
-}) async {
-  final atendimento = Atendimento(
-    dataSaida: dataSaida,
-    dataChegada: dataChegada,
-    destino: destino,
-    kmInicial: kmInicial,
-    reserveID: reserveID,
-  );
-
-  try {
-    final createdAtendimento = await addAtendimento(
-      atendimento,
+    DateTime dateTime, {
+    required DateTime dataSaida,
+    required DateTime dataChegada,
+    required String destino,
+    required double kmInicial,
+    required int reserveID,
+    required List<String> checkedItems,
+    required List<Map<String, dynamic>> documents,
+  }) async {
+    final atendimento = Atendimento(
       dataSaida: dataSaida,
       dataChegada: dataChegada,
       destino: destino,
@@ -287,34 +321,77 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
       reserveID: reserveID,
     );
 
-    if (createdAtendimento.id == null) {
-      print('Falha ao criar atendimento. ID inválido.');
-      throw Exception('Falha ao criar atendimento. ID inválido.');
-    }
+    try {
 
-    if (checkedItems.isNotEmpty) {
-      await addAtendimentoItems(checkedItems, createdAtendimento.id!);
-    }
+      final createdAtendimento = await addAtendimento(
+        atendimento,
+        dataSaida: dataSaida,
+        dataChegada: dataChegada,
+        destino: destino,
+        kmInicial: kmInicial,
+        reserveID: reserveID,
+      );
 
-    if (documents.isNotEmpty) {
-      await addAtendimentoDocuments(documents, createdAtendimento.id!);
-    }
+      if (createdAtendimento.id == null) {
+        print('Falha ao criar atendimento. ID inválido.');
+        throw Exception('Falha ao criar atendimento. ID inválido.');
+      }
 
-    /*
-     ✅ Atualiza a tag inService após salvar o atendimento completo 
-     Actualizar a flag inService para  "No", indicando que a reserva ainda na foi adiante
-    */
-    await updateInService(
-      reservaId: reserveID,
-      inService: "Yes", // ou "Sim", dependendo do que você armazena no backend
+      if (checkedItems.isNotEmpty) {
+        await addAtendimentoItems(checkedItems, createdAtendimento.id!);
+      }
+
+      if (documents.isNotEmpty) {
+        await addAtendimentoDocuments(documents, createdAtendimento.id!);
+      }
+
+      await updateInService(
+        reservaId: reserveID,
+        inService: "Yes",
+      );
+
+     // 4. Obter e atualizar estado do veículo (versão simplificada)
+      try {
+        final int vehicleId = await getVeiculoIdByReservaId(reserveID);
+        await updateVehicleState(vehicleId, 'Occupied');
+        print('Veículo $vehicleId atualizado para Occupied');
+      } catch (e) {
+        print('ERRO: Falha ao atualizar estado do veículo: $e');
+        throw Exception('Não foi possível atualizar o veículo. Reserva sem veículo válido?');
+      }
+
+      print("Atendimento completo adicionado com sucesso!");
+    } catch (e) {
+      print("Erro ao adicionar atendimento completo: $e");
+      throw Exception('Erro ao adicionar atendimento completo');
+    }
+  }
+
+  Future<Veiculo> getVeiculoByReservaId(int reservaId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/reserva/$reservaId/veiculo'),
     );
 
-    print("Atendimento completo adicionado com sucesso!");
-  } catch (e) {
-    print("Erro ao adicionar atendimento completo: $e");
-    throw Exception('Erro ao adicionar atendimento completo');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return Veiculo.fromJson(data['veiculo']);
+    } else {
+      throw Exception('Falha ao carregar veículo da reserva');
+    }
   }
-}
+
+  Future<int> getVeiculoIdByReservaId(int reservaId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/reserva/$reservaId/veiculoId'),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return data['veiculoID'] as int;
+    } else {
+      throw Exception('Falha ao obter ID do veículo');
+    }
+  }
 
   Future<void> updateAtendimento({
     required int atendimentoId,

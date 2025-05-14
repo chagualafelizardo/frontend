@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:app/models/UserRenderImgBase64.dart';
+import 'package:app/models/UserRole.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -131,59 +132,88 @@ class _EditUserFormState extends State<EditUserForm> {
   }
 
   Future<void> _saveUser() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      // Verifica se as senhas coincidem
-      if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Passwords do not match')),
-        );
-        return;
-      }
-
-      final updatedUser = UserBase64(
-        id: widget.user.id,
-        username: _usernameController.text,
-        firstName: _firstNameController.text,
-        lastName: _lastNameController.text,
-        email: _emailController.text,
-        address: _addressController.text,
-        neighborhood: _neighborhoodController.text,
-        phone1: _phone1Controller.text,
-        phone2: _phone2Controller.text,
-        state: _state,
-        gender: _gender,
-        imgBase64: _imageBytes != null
-            ? base64Encode(_imageBytes!)
-            : widget.user.imgBase64,
-        birthdate: _selectedBirthdate ?? DateTime.now(),
+  print('[DEBUG] _saveUser() iniciado');
+  
+  if (_formKey.currentState?.validate() ?? false) {
+    print('[DEBUG] Validação do formulário OK');
+    
+    // Verifica se as senhas coincidem
+    if (_passwordController.text != _confirmPasswordController.text) {
+      print('[DEBUG] Erro: Senhas não coincidem');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match')),
       );
-
-      try {
-        // Atualiza o usuário
-        await widget.userService.updateUser(widget.user.id as User, updatedUser);
-
-        // Atualiza as roles do usuário
-        UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
-        List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
-
-        // Remove todas as roles atuais do usuário
-        await userRoleService.removeAllRolesFromUser(widget.user.id);
-
-        // Atribui as novas roles selecionadas
-        for (var role in selectedRoles) {
-          await userRoleService.assignRoleToUser(widget.user.id, role.id);
-        }
-
-        // Notifica que o usuário foi atualizado
-        widget.onUserUpdated();
-        Navigator.of(context).pop();
-      } catch (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update user: $error')),
-        );
-      }
+      return;
     }
+
+    print('[DEBUG] Criando objeto updatedUser');
+    final updatedUser = UserBase64(
+      id: widget.user.id,
+      username: _usernameController.text,
+      firstName: _firstNameController.text,
+      lastName: _lastNameController.text,
+      email: _emailController.text,
+      address: _addressController.text,
+      neighborhood: _neighborhoodController.text,
+      phone1: _phone1Controller.text,
+      phone2: _phone2Controller.text,
+      password:_passwordController.text,
+      state: _state,
+      gender: _gender,
+      imgBase64: _imageBytes != null
+          ? base64Encode(_imageBytes!)
+          : widget.user.imgBase64,
+      birthdate: _selectedBirthdate ?? DateTime.now(),
+    );
+
+    print('[DEBUG] updatedUser criado: ${updatedUser}');
+
+    try {
+      print('[DEBUG] Chamando updateUser()');
+      // Atualiza o usuário
+      await widget.userService.updateUser(widget.user.id, updatedUser);
+      print('[DEBUG] Usuário atualizado com sucesso');
+
+      // Atualiza as roles do usuário
+      UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
+      List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
+      print('[DEBUG] Roles selecionadas: ${selectedRoles.map((r) => r.id).toList()}');
+
+      print('[DEBUG] Removendo todas as roles atuais');
+      // Remove todas as roles atuais do usuário
+      bool removed = await userRoleService.removeAllRolesFromUser(widget.user.id);
+      if (!removed) {
+        print('[WARNING] Não foi possível remover todas as roles');
+      } else {
+        print('[DEBUG] Todas as roles removidas com sucesso');
+      }
+
+      // Atribui as novas roles selecionadas
+      print('[DEBUG] Atribuindo novas roles');
+      for (var role in selectedRoles) {
+        print('[DEBUG] Atribuindo role: ${role.id}');
+        UserRole? result = await userRoleService.assignRoleToUser(widget.user.id, role.id);
+        if (result == null) {
+          print('[WARNING] Falha ao atribuir role: ${role.id}');
+        } else {
+          print('[DEBUG] Role ${role.id} atribuída com sucesso');
+        }
+      }
+
+      // Notifica que o usuário foi atualizado
+      print('[DEBUG] Operação concluída com sucesso');
+      widget.onUserUpdated();
+      Navigator.of(context).pop();
+    } catch (error) {
+      print('[ERROR] Erro ao atualizar usuário: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update user: $error')),
+      );
+    }
+  } else {
+    print('[DEBUG] Validação do formulário falhou');
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +482,7 @@ class _EditUserFormState extends State<EditUserForm> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: CheckboxListTile(
-            title: Text(roles[index].name ?? 'Role ${index + 1}', style: const TextStyle(color: Colors.black87)),
+            title: Text(roles[index].name ?? 'Role ${index + 1}', style: const TextStyle(color: Color.fromARGB(221, 250, 249, 249))),
             value: roles[index].selected ?? false,
             onChanged: (bool? newValue) {
               setState(() {

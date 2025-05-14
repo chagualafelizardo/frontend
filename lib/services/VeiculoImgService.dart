@@ -9,19 +9,21 @@ class VeiculoImgService {
   VeiculoImgService(this.baseUrl);
 
   // Fetch all images for a specific vehicle by its ID
-  Future<List<VeiculoImg>> fetchImagesByVehicleId(int veiculoId) async {
-    final response = await http.get(Uri.parse('$baseUrl/veiculoimg/$veiculoId/images'));
+  Future<List<VeiculoImg>> fetchImagesByVehicleId(int vehicleId) async {
+      final response = await http.get(
+        Uri.parse('$baseUrl/veiculoimg/$vehicleId/images'),
+      );
 
-    if (response.statusCode == 200) {
-      List<dynamic> body = jsonDecode(response.body);
-      return body.map((json) => VeiculoImg.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load images');
-    }
+      if (response.statusCode == 200) {
+        List<dynamic> data = jsonDecode(response.body);
+        return data.map((json) => VeiculoImg.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load images');
+      }
   }
 
   Future<List<VeiculoImg>> getVeiculoImages(int veiculoId) async {
-    final response = await http.get(Uri.parse('$baseUrl/veiculo/$veiculoId/images'));
+    final response = await http.get(Uri.parse('$baseUrl/veiculoimg/$veiculoId/images'));
 
     if (response.statusCode == 200) {
       // Decodifica o JSON e mapeia para uma lista de VeiculoImg

@@ -63,7 +63,7 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
 
   Future<void> _fetchVeiculos() async {
     try {
-      List<veiculo_models.Veiculo> veiculos = await _veiculoService.getVeiculos();
+      List<veiculo_models.Veiculo> veiculos = await _veiculoService.fetchVehiclesByState('Free');
       setState(() {
         _veiculos = veiculos;
         for (var veiculo in veiculos) {
@@ -163,20 +163,18 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
     }
   }
 
-  Future<void> _showAddClientDialog() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddClientDialog(userService: _userService),
-      ),
-    );
+Future<void> _showAddClientDialog() async {
+  final result = await showDialog<user_models.User>(
+    context: context,
+    builder: (context) => AddClientDialog(userService: _userService),
+  );
 
-    if (result != null) {
-      setState(() {
-        _users.add(result);
-      });
-    }
+  if (result != null) {
+    setState(() {
+      _users.add(result);
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -496,6 +494,7 @@ class AddClientDialog extends StatefulWidget {
 }
 
 class _AddClientDialogState extends State<AddClientDialog> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
@@ -552,189 +551,216 @@ class _AddClientDialogState extends State<AddClientDialog> {
     }
   }
 
+  Future<void> _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Passwords do not match.')),
+        );
+        return;
+      }
+
+      try {
+        user_models.User newUser = user_models.User(
+          id: 0,
+          username: _usernameController.text,
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          email: _emailController.text,
+          address: _addressController.text,
+          neighborhood: _neighborhoodController.text,
+          phone1: _phone1Controller.text,
+          phone2: _phone2Controller.text,
+          password: _passwordController.text,
+          imgBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
+          state: _state,
+          gender: _gender,
+          birthdate: _birthdateController.text,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        user_models.User createdUser = await widget.userService.createUser(newUser);
+        
+        UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
+        await userRoleService.assignRoleToUser(createdUser.id, 9);
+
+        Navigator.of(context).pop(createdUser);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add New Client'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+  return Dialog(
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.35,
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Center(
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: ClipOval(
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.grey[300],
-                    child: _imageBytes == null
-                        ? const Center(child: Text('Select Image'))
-                        : Image.memory(_imageBytes!, fit: BoxFit.cover),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Add New Client',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: ClipOval(
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey[300],
+                      child: _imageBytes == null
+                          ? const Icon(Icons.add_a_photo, size: 24)
+                          : Image.memory(_imageBytes!, fit: BoxFit.cover),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-            ),
-            TextFormField(
-              controller: _firstNameController,
-              decoration: const InputDecoration(labelText: 'First Name'),
-            ),
-            TextFormField(
-              controller: _lastNameController,
-              decoration: const InputDecoration(labelText: 'Last Name'),
-            ),
-            const SizedBox(height: 20),
-            const Text("Gender", style: TextStyle(fontSize: 16)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Radio<String>(
-                  value: 'M',
-                  groupValue: _gender,
-                  onChanged: (value) {
-                    setState(() {
-                      _gender = value!;
-                    });
-                  },
+              const SizedBox(height: 12),
+              _buildCompactField(_usernameController, 'Username', true),
+              _buildCompactField(_firstNameController, 'First Name', true),
+              _buildCompactField(_lastNameController, 'Last Name', true),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Gender", style: TextStyle(fontSize: 14)),
+                    Row(
+                      children: [
+                        Radio<String>(
+                          value: 'M',
+                          groupValue: _gender,
+                          onChanged: (value) => setState(() => _gender = value!),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        const Text("Male", style: TextStyle(fontSize: 14)),
+                        Radio<String>(
+                          value: 'F',
+                          groupValue: _gender,
+                          onChanged: (value) => setState(() => _gender = value!),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        const Text("Female", style: TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ],
                 ),
-                const Text("Male"),
-                Radio<String>(
-                  value: 'F',
-                  groupValue: _gender,
-                  onChanged: (value) {
-                    setState(() {
-                      _gender = value!;
-                    });
-                  },
+              ),
+              
+              _buildCompactField(_birthdateController, 'Birthdate', true, readOnly: true, onTap: _selectBirthdate),
+              _buildCompactField(_emailController, 'Email', true),
+              _buildCompactField(_addressController, 'Address', false),
+              _buildCompactField(_neighborhoodController, 'Neighborhood', false),
+              _buildCompactField(_phone1Controller, 'Phone 1', true),
+              _buildCompactField(_phone2Controller, 'Phone 2', false),
+              _buildCompactField(_passwordController, 'Password', true, obscureText: true),
+              _buildCompactField(_confirmPasswordController, 'Confirm Password', true, obscureText: true),
+              
+              DropdownButtonFormField<String>(
+                value: _state,
+                items: ['active', 'inactive']
+                    .map((state) => DropdownMenuItem(
+                          value: state,
+                          child: Text(state, style: const TextStyle(fontSize: 14)),
+                        ))
+                    .toList(),
+                onChanged: (value) => setState(() => _state = value!),
+                decoration: const InputDecoration(
+                  labelText: 'State',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(),
+                  isDense: true,
                 ),
-                const Text("Female"),
-              ],
-            ),
-            TextFormField(
-              controller: _birthdateController,
-              readOnly: true,
-              onTap: _selectBirthdate,
-              decoration: const InputDecoration(labelText: 'Birthdate'),
-            ),
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
-            TextFormField(
-              controller: _addressController,
-              decoration: const InputDecoration(labelText: 'Address'),
-            ),
-            TextFormField(
-              controller: _neighborhoodController,
-              decoration: const InputDecoration(labelText: 'Neighborhood'),
-            ),
-            TextFormField(
-              controller: _phone1Controller,
-              decoration: const InputDecoration(labelText: 'Phone 1'),
-            ),
-            TextFormField(
-              controller: _phone2Controller,
-              decoration: const InputDecoration(labelText: 'Phone 2'),
-            ),
-            TextFormField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            TextFormField(
-              controller: _confirmPasswordController,
-              decoration: const InputDecoration(labelText: 'Confirm Password'),
-              obscureText: true,
-            ),
-            DropdownButtonFormField<String>(
-              value: _state,
-              items: ['active', 'inactive']
-                  .map((state) => DropdownMenuItem(
-                        value: state,
-                        child: Text(state),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _state = value!;
-                });
-              },
-              decoration: const InputDecoration(labelText: 'State'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                if (_usernameController.text.isEmpty ||
-                    _firstNameController.text.isEmpty ||
-                    _lastNameController.text.isEmpty ||
-                    _emailController.text.isEmpty ||
-                    _passwordController.text.isEmpty ||
-                    _confirmPasswordController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill in all required fields.')),
-                  );
-                  return;
-                }
-
-                if (_passwordController.text != _confirmPasswordController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Passwords do not match.')),
-                  );
-                  return;
-                }
-
-                try {
-                  user_models.User newUser = user_models.User(
-                    id: 0,
-                    username: _usernameController.text,
-                    firstName: _firstNameController.text,
-                    lastName: _lastNameController.text,
-                    email: _emailController.text,
-                    address: _addressController.text,
-                    neighborhood: _neighborhoodController.text,
-                    phone1: _phone1Controller.text,
-                    phone2: _phone2Controller.text,
-                    password: _passwordController.text,
-                    imgBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
-                    state: _state,
-                    gender: _gender,
-                    birthdate: _birthdateController.text,
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                  );
-
-                  user_models.User createdUser = await widget.userService.createUser(newUser);
-                  
-                  UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
-                  await userRoleService.assignRoleToUser(createdUser.id, 9); // 9 e a role que os cliente devem implementar
-
-                  Navigator.pop(context, createdUser);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: ${e.toString()}')),
-                  );
-                }
-              },
-              child: const Text('Save Client'),
-            ),
-          ],
+                style: const TextStyle(fontSize: 14),
+              ),
+              
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('CANCEL', style: TextStyle(fontSize: 14)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: const Text('SAVE', style: TextStyle(fontSize: 14)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+Widget _buildCompactField(
+  TextEditingController controller,
+  String labelText,
+  bool isRequired, {
+  bool obscureText = false,
+  bool readOnly = false,
+  VoidCallback? onTap,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      readOnly: readOnly,
+      onTap: onTap,
+      decoration: InputDecoration(
+        labelText: labelText + (isRequired ? ' *' : ''),
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        isDense: true,
+      ),
+      style: const TextStyle(fontSize: 14),
+      validator: isRequired
+          ? (value) => value!.isEmpty ? 'Required field' : null
+          : null,
+    ),
+  );
+}
 }
 
 extension on DateTime {

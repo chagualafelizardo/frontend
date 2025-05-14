@@ -57,8 +57,8 @@ class _ManageReservationPaymentPageState extends State<ManageReservationPaymentP
           bottom: TabBar(
             controller: _tabController,
             tabs: const [
-              Tab(text: 'Confirmed Reservations'),
-              Tab(text: 'Reservation Payments'),
+              Tab(text: 'Reservations confirmed without payment made'),
+              Tab(text: 'Paid reservations'),
             ],
           ),
         ),

@@ -66,32 +66,15 @@ Future<List<PagamentoList>> fetchPagamentos() async {
   }
 
 
-  // Future<Pagamento> createPagamento(Pagamento pagamento) async {
-  //   final response = await http.post(
-  //     Uri.parse('$baseUrl/pagamento'),
-  //     headers: {'Content-Type': 'application/json'},
-  //     body: jsonEncode(pagamento.toJson()), // Usa o toJson ajustado
-  //   );
-
-  //   if (response.statusCode == 201) {
-  //     return Pagamento.fromJson(jsonDecode(response.body)); // Usa o fromJson ajustado
-  //   } else {
-  //     throw Exception('Failed to create pagamento');
-  //   }
-  // }
-
   Future<Pagamento> createPagamento(Pagamento pagamento) async {
     final response = await http.post(
       Uri.parse('$baseUrl/pagamento'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        ...pagamento.toJson(),
-        'valorTotal': pagamento.valorTotal, // Garante que é enviado como número
-      }),
+      body: jsonEncode(pagamento.toJson()), // Usa o toJson ajustado
     );
 
     if (response.statusCode == 201) {
-      return Pagamento.fromJson(jsonDecode(response.body));
+      return Pagamento.fromJson(jsonDecode(response.body)); // Usa o fromJson ajustado
     } else {
       throw Exception('Failed to create pagamento');
     }

@@ -32,34 +32,6 @@ class UserServiceBase64 {
     }
   }
 
-  // Future<User> createUser(User user) async {
-  //   final response = await http.post(
-  //     Uri.parse('$apiUrl/user'),
-  //     headers: {'Content-Type': 'application/json'},
-  //     body: json.encode(user.toJson()),
-  //   );
-
-  //   if (response.statusCode == 201) {
-  //     return User.fromJson(json.decode(response.body));
-  //   } else {
-  //     throw Exception('Failed to create user');
-  //   }
-  // }
-
-  // Future<User> updateUser(User user) async {
-  //   final response = await http.put(
-  //     Uri.parse('$apiUrl/user/${user.id}'),
-  //     headers: {'Content-Type': 'application/json'},
-  //     body: json.encode(user.toJson()),
-  //   );
-
-  //   if (response.statusCode == 200) {
-  //     return User.fromJson(json.decode(response.body));
-  //   } else {
-  //     throw Exception('Failed to update user');
-  //   }
-  // }
-
   Future<void> deleteUser(int id) async {
     final response = await http.delete(Uri.parse('$apiUrl/user/$id'));
 

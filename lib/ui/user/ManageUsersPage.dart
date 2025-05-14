@@ -24,6 +24,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
   String _searchQuery = ''; // Variável para armazenar a consulta de pesquisa
   bool _isGridView = true;
 
+
   @override
   void initState() {
     super.initState();
@@ -45,32 +46,6 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
       }
     });
   }
-
-/*
-  Future<void> _fetchUsers() async {
-    try {
-      final List<dynamic> userJsonList = await userService.getUsers();
-
-      setState(() {
-        _users = userJsonList.map((userJson) {
-          if (userJson is Map<String, dynamic>) {
-            return UserBase64.fromJson(userJson);
-          } else {
-            print('Unexpected type for userJson: ${userJson.runtimeType}');
-            throw TypeError();
-          }
-        }).toList();
-        _filteredUsers = List.from(_users); // Inicialmente, a lista filtrada é igual à lista completa
-      });
-    } catch (e, stackTrace) {
-      print('Error fetching users: $e');
-      print('Stack trace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to fetch users.')),
-      );
-    }
-  }
-*/
 
   Future<void> _fetchUsers() async {
   try {

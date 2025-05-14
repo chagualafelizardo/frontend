@@ -26,25 +26,12 @@ class Pagamento {
     //   );
     // }
 
-    // factory Pagamento.fromJson(Map<String, dynamic> json) {
-    //   return Pagamento(
-    //     id: json['id'] as int?,
-    //     valorTotal: (json['valorTotal'] is int) 
-    //         ? (json['valorTotal'] as int).toDouble() 
-    //         : json['valorTotal'] as double, // Trata valores int ou double
-    //     data: DateTime.parse(json['data'] as String),
-    //     atendimentoId: json['atendimentoId'] as int,
-    //     userId: json['userId'] as int,
-    //     criterioPagamentoId: json['criterioPagamentoId'] as int,
-    //   );
-    // }
-
     factory Pagamento.fromJson(Map<String, dynamic> json) {
       return Pagamento(
         id: json['id'] as int?,
-        valorTotal: json['valorTotal'] is String 
-            ? double.tryParse(json['valorTotal']) ?? 0.0
-            : (json['valorTotal'] as num?)?.toDouble() ?? 0.0,
+        valorTotal: (json['valorTotal'] is int) 
+            ? (json['valorTotal'] as int).toDouble() 
+            : json['valorTotal'] as double, // Trata valores int ou double
         data: DateTime.parse(json['data'] as String),
         atendimentoId: json['atendimentoId'] as int,
         userId: json['userId'] as int,

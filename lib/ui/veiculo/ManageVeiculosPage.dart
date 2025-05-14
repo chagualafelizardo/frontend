@@ -156,27 +156,6 @@ void _confirmDeleteVeiculo(Veiculo veiculo) {
     );
   }
 
-  void _openVeiculoPriceHistoryDialog(Veiculo veiculo) {
-  showDialog(
-    context: context,
-    builder: (context) {
-      return Dialog(
-        insetPadding: EdgeInsets.all(20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: 600,
-            maxHeight: MediaQuery.of(context).size.height * 0.8,
-          ),
-          child: ManageVehicleHistoryPage(
-            service: VehicleHistoryRentService(dotenv.env['BASE_URL']!),
-            veiculoId: veiculo.id, // Passe o ID do veículo
-          ),
-        ),
-      );
-    },
-  );
-}
-
   void _openEditVeiculoDialog(Veiculo veiculo) {
     VeiculoAdd veiculoAdd = VeiculoAdd(
       id: veiculo.id,
@@ -389,23 +368,6 @@ Widget build(BuildContext context) {
                                       ),
                                       const SizedBox(width: 8), // Add spacing between buttons
                                       Tooltip(
-                                          message: 'Add vehicle price rent history',
-                                          child: Material(
-                                            color: Colors.orangeAccent,
-                                            shape: const CircleBorder(),
-                                            child: InkWell(
-                                              borderRadius: BorderRadius.circular(50),
-                                              onTap: () => _openVeiculoPriceHistoryDialog(veiculo),
-                                              child: const Padding(
-                                                padding: EdgeInsets.all(8.0),
-                                                child: Icon(Icons.list_alt, color: Colors.white),
-                                              ),
-                                            ),
-                                          ),
-                                      ),
-                                      const SizedBox(width: 8), // Add spacing between buttons
-                                      // Delete Button
-                                      Tooltip(
                                         message: 'Delete vehicle',
                                         child: Material(
                                           color: Colors.redAccent,
@@ -522,24 +484,6 @@ Widget build(BuildContext context) {
                                           ),
                                         ),
                                       ),
-
-                                      const SizedBox(width: 8), // Add spacing between buttons
-                                      Tooltip(
-                                          message: 'Add vehicle price rent history',
-                                          child: Material(
-                                            color: Colors.orangeAccent,
-                                            shape: const CircleBorder(),
-                                            child: InkWell(
-                                              borderRadius: BorderRadius.circular(50),
-                                              onTap: () => _openVeiculoPriceHistoryDialog(veiculo),
-                                              child: const Padding(
-                                                padding: EdgeInsets.all(8.0),
-                                                child: Icon(Icons.list_alt, color: Colors.white),
-                                              ),
-                                            ),
-                                          ),
-                                      ),
-
                                       const SizedBox(width: 8), // Add spacing between buttons
                                       // Delete Button
                                       Tooltip(

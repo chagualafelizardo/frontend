@@ -492,4 +492,23 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
       throw Exception('Erro na requisição: $error');
     }
   }
+
+  Future<Atendimento> getAtendimentoById(int atendimentoId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/atendimento/$atendimentoId'),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return Atendimento.fromJson(data);
+      } else {
+        throw Exception('Falha ao carregar atendimento. Status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Erro ao buscar atendimento por ID: $e');
+      throw Exception('Erro ao buscar atendimento: $e');
+    }
+  }
+
 }

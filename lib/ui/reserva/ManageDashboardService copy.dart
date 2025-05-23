@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:app/ui/veiculo/ViewVeiculoPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,7 +9,6 @@ import 'package:app/models/Reserva.dart' as reserva_model;
 import 'package:app/models/Veiculo.dart' as veiculo_model;
 import 'package:app/services/DriveDeliverService.dart';
 import 'package:app/models/DriveDeliver.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ManageDashboardService extends StatefulWidget {
   const ManageDashboardService({Key? key}) : super(key: key);
@@ -38,22 +36,14 @@ class _MapSelectionScreenState extends State<ManageDashboardService>
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   bool _isMapLoading = true;
-// Rastreamento
-  final Set<Marker> _trackingMarkers = {};
-  final Set<Polyline> _trackingPolylines = {};
-  GoogleMapController? _trackingMapController;
-  bool _isTrackingLoading = true;
-  List<DriveDeliver> _activeRoutes = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 5, vsync: this); // Mude para 5
     _tabController.addListener(() {
       if (!mounted) return;
-      if (_tabController.index == 4) { // 5ª aba (índice 4)
-        _loadTrackingData(_activeRoutes);
-      } else if (_tabController.index == 3) { // 4ª aba (Delivery Map)
+      if (_tabController.index == 4) { // Agora o mapa é a 5ª aba (índice 4)
         _loadDriveDeliverData();
       }
     });
@@ -398,535 +388,51 @@ class _MapSelectionScreenState extends State<ManageDashboardService>
 
         final activeRoutes = snapshot.data!;
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return SizedBox(
-              height: constraints.maxHeight,
-              child: Column(
-                children: [
-                  // Mapa de rastreamento (70% da tela)
-                  SizedBox(
-                    height: constraints.maxHeight * 0.7,
-                    child: Stack(
+        return ListView.builder(
+          itemCount: activeRoutes.length,
+          itemBuilder: (context, index) {
+            final route = activeRoutes[index];
+            return Card(
+              margin: const EdgeInsets.all(8),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Route ID: ${route.id}', style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    )),
+                    const SizedBox(height: 8),
+                    Text('Reserva ID: ${route.reservaId}'),
+                    Text('Vehicle: ${route.reservaId}'),
+                    const SizedBox(height: 8),
+                    Row(
                       children: [
-                        GoogleMap(
-                          onMapCreated: (controller) {
-                            _trackingMapController = controller;
-                            _loadTrackingData(activeRoutes);
-                          },
-                          initialCameraPosition: CameraPosition(
-                            target: _center,
-                            zoom: 12,
-                          ),
-                          mapType: _mapType == 'normal' ? MapType.normal : MapType.hybrid,
-                          markers: _trackingMarkers,
-                          polylines: _trackingPolylines,
-                          myLocationEnabled: true,
-                          myLocationButtonEnabled: false,
-                        ),
-                        
-                        if (_isTrackingLoading)
-                          const Center(child: CircularProgressIndicator()),
-                        
-                        Positioned(
-                          top: 16,
-                          right: 16,
-                          child: Column(
-                            children: [
-                              FloatingActionButton(
-                                mini: true,
-                                onPressed: _toggleMapType,
-                                child: Icon(
-                                  _mapType == 'normal' ? Icons.satellite : Icons.map,
-                                  color: Colors.white,
-                                ),
-                                backgroundColor: Colors.blue,
-                                tooltip: _mapType == 'normal' ? 'Satellite View' : 'Map View',
-                              ),
-                              const SizedBox(height: 8),
-                              FloatingActionButton(
-                                mini: true,
-                                onPressed: () => _loadTrackingData(activeRoutes),
-                                child: const Icon(Icons.refresh, color: Colors.white),
-                                backgroundColor: Colors.blue,
-                                tooltip: 'Refresh Tracking',
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        Positioned(
-                          bottom: 16,
-                          left: 16,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                  )
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(width: 12, height: 12, color: Colors.green),
-                                    const SizedBox(width: 8),
-                                    const Text('Pickup Point'),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(width: 12, height: 12, color: Colors.red),
-                                    const SizedBox(width: 8),
-                                    const Text('Dropoff Point'),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(width: 12, height: 3, color: Colors.blue),
-                                    const SizedBox(width: 8),
-                                    const Text('Delivery Route'),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Container(width: 12, height: 12, color: Colors.orange),
-                                    const SizedBox(width: 8),
-                                    const Text('Vehicle Position'),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        Icon(Icons.location_on, color: Colors.green, size: 16),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text('Pickup: ${route.locationDescription}')),
                       ],
                     ),
-                  ),
-                  
-                  // Lista de rotas ativas (30% da tela)
-                  SizedBox(
-                    height: constraints.maxHeight * 0.3,
-                    child: ListView.builder(
-                      itemCount: activeRoutes.length,
-                      itemBuilder: (context, index) {
-                        final route = activeRoutes[index];
-                        return Card(
-                          margin: const EdgeInsets.all(8),
-                          child: ListTile(
-                            leading: const Icon(Icons.directions_car, color: Colors.blue),
-                            title: Text('Rota: ${route.reservaId}'),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Destino: ${route.locationDescription ?? 'N/A'}'),
-                                Text('Contacto: ${_extractPhoneNumber(route.locationDescription)}'),
-                                Text('Status: ${route.deliver == '"Yes"' ? 'Em andamento' : 'Concluída'}'),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.phone, color: Colors.green),
-                              onPressed: () => _makePhoneCall(_extractPhoneNumber(route.locationDescription)),
-                            ),
-                            onTap: () {
-                              if (route.pickupLatitude != null && route.pickupLongitude != null) {
-                                final target = route.dropoffLatitude != null
-                                    ? LatLng(
-                                        (route.pickupLatitude! + route.dropoffLatitude!) / 2,
-                                        (route.pickupLongitude! + route.dropoffLongitude!) / 2)
-                                    : LatLng(route.pickupLatitude!, route.pickupLongitude!);
-                                
-                                _trackingMapController?.animateCamera(
-                                  CameraUpdate.newLatLngZoom(target, 14),
-                                );
-                              }
-                            },
-                          ),
-                        );
-                      },
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.red, size: 16),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text('Dropoff: ${route.locationDescription ?? 'Not specified'}')),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text('Status: ${route.deliver}'),
+                    Text('Date: ${route.date?.toLocal().toString().split(' ')[0] ?? 'N/A'}'),
+                    if (route.deliver != null) Text('Driver: ${route.deliver}'),
+                  ],
+                ),
               ),
             );
           },
         );
       },
     );
-  }
-
-  Widget _buildTrackingMap(List<DriveDeliver> routes) {
-    return Stack(
-      children: [
-        GoogleMap(
-          onMapCreated: (controller) {
-            _trackingMapController = controller;
-            _loadTrackingData(routes);
-          },
-          initialCameraPosition: CameraPosition(
-            target: _center,
-            zoom: 12,
-          ),
-          mapType: _mapType == 'normal' ? MapType.normal : MapType.hybrid,
-          markers: _trackingMarkers,
-          polylines: _trackingPolylines,
-          myLocationEnabled: true,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: false,
-        ),
-        if (_isTrackingLoading)
-          const Center(child: CircularProgressIndicator()),
-        _buildMapControls(),
-        _buildMapLegend(),
-      ],
-    );
-  }
-
-Widget _buildMapControls() {
-  return Positioned(
-    top: 16,
-    right: 16,
-    child: Column(
-      children: [
-        FloatingActionButton(
-          mini: true,
-          onPressed: _toggleMapType,
-          child: Icon(
-            _mapType == 'normal' ? Icons.satellite : Icons.map,
-            color: Colors.white,
-          ),
-          backgroundColor: Colors.blue,
-        ),
-        const SizedBox(height: 8),
-        FloatingActionButton(
-          mini: true,
-          onPressed: () => _loadTrackingData(_activeRoutes),
-          child: const Icon(Icons.refresh, color: Colors.white),
-          backgroundColor: Colors.blue,
-        ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMapLegend() {
-    return Positioned(
-      bottom: 16,
-      left: 16,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Icon(Icons.location_on, color: Colors.green, size: 16),
-              SizedBox(width: 4),
-              Text('Partida'),
-            ]),
-            Row(children: [
-              Icon(Icons.location_on, color: Colors.red, size: 16),
-              SizedBox(width: 4),
-              Text('Destino'),
-            ]),
-            Row(children: [
-              Icon(Icons.directions, color: Colors.blue, size: 16),
-              SizedBox(width: 4),
-              Text('Rota'),
-            ]),
-            Row(children: [
-              Icon(Icons.directions_car, color: Colors.orange, size: 16),
-              SizedBox(width: 4),
-              Text('Veículo'),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoutesList(List<DriveDeliver> routes) {
-    return ListView.builder(
-      itemCount: routes.length,
-      itemBuilder: (context, index) {
-        final route = routes[index];
-        return Card(
-          margin: const EdgeInsets.all(8),
-          child: ListTile(
-            leading: const Icon(Icons.directions_car, color: Colors.blue),
-            title: Text('Rota: ${route.reservaId}'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Destino: ${route.locationDescription ?? 'N/A'}'),
-                Text('Contacto: ${_extractPhoneNumber(route.locationDescription)}'),
-              ],
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.phone, color: Colors.green),
-              onPressed: () => _makePhoneCall(_extractPhoneNumber(route.locationDescription)),
-            ),
-            onTap: () => _focusOnRoute(route),
-          ),
-        );
-      },
-    );
-  }
-
-  void _focusOnRoute(DriveDeliver route) {
-    if (route.pickupLatitude == null || route.pickupLongitude == null) return;
-
-    if (route.dropoffLatitude != null && route.dropoffLongitude != null) {
-      final bounds = LatLngBounds(
-        southwest: LatLng(
-          min(route.pickupLatitude!, route.dropoffLatitude!),
-          min(route.pickupLongitude!, route.dropoffLongitude!),
-        ),
-        northeast: LatLng(
-          max(route.pickupLatitude!, route.dropoffLatitude!),
-          max(route.pickupLongitude!, route.dropoffLongitude!),
-        ),
-      );
-      
-      _trackingMapController?.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 100),
-      );
-    } else {
-      _trackingMapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(route.pickupLatitude!, route.pickupLongitude!),
-          14,
-        ),
-      );
-    }
-  }
-
-  String _extractPhoneNumber(String? notes) {
-    if (notes == null) return 'N/A';
-    final phoneRegExp = RegExp(r'(\+?258)?\s?8[4-7][0-9]{7}');
-    final match = phoneRegExp.firstMatch(notes);
-    return match?.group(0) ?? notes;
-  }
-
-  // Métodos auxiliares adicionais
-  Set<Marker> _createTrackingMarkers(List<DriveDeliver> routes) {
-    final Set<Marker> markers = {};
-    
-    // Apenas adiciona os marcadores fixos (pickup e dropoff)
-    // Os marcadores de veículo serão adicionados pelo _loadTrackingData
-    for (final route in routes) {
-      if (route.pickupLatitude != null && route.pickupLongitude != null) {
-        markers.add(
-          Marker(
-            markerId: MarkerId('tracking_pickup_${route.id}'),
-            position: LatLng(route.pickupLatitude!, route.pickupLongitude!),
-            infoWindow: InfoWindow(
-              title: 'Pickup - Reserva ${route.reservaId}',
-              snippet: 'Contacto: ${_extractPhoneNumber(route.locationDescription)}',
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          ),
-        );
-      }
-      
-      if (route.dropoffLatitude != null && route.dropoffLongitude != null) {
-        markers.add(
-          Marker(
-            markerId: MarkerId('tracking_dropoff_${route.id}'),
-            position: LatLng(route.dropoffLatitude!, route.dropoffLongitude!),
-            infoWindow: InfoWindow(
-              title: 'Dropoff - Reserva ${route.reservaId}',
-              snippet: 'Contacto: ${_extractPhoneNumber(route.locationDescription)}',
-            ),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          ),
-        );
-      }
-    }
-    
-    return markers;
-  }
-
-  Set<Polyline> _createTrackingPolylines(List<DriveDeliver> routes) {
-    final Set<Polyline> polylines = {};
-    
-    for (final route in routes) {
-      if (route.pickupLatitude != null && 
-          route.pickupLongitude != null &&
-          route.dropoffLatitude != null && 
-          route.dropoffLongitude != null) {
-        polylines.add(
-          Polyline(
-            polylineId: PolylineId('tracking_route_${route.id}'),
-            color: Colors.blue,
-            width: 3,
-            points: [
-              LatLng(route.pickupLatitude!, route.pickupLongitude!),
-              LatLng(route.dropoffLatitude!, route.dropoffLongitude!),
-            ],
-          ),
-        );
-      }
-    }
-    
-    return polylines;
-  }
-
-  Future<void> _loadTrackingData(List<DriveDeliver> routes) async {
-    if (!mounted) return;
-
-    setState(() => _isTrackingLoading = true);
-    _trackingMarkers.clear();
-    _trackingPolylines.clear();
-
-    try {
-      // Se não recebermos rotas, buscamos as ativas
-      final activeRoutes = routes.isNotEmpty ? routes : await _fetchActiveRoutes();
-      _activeRoutes = activeRoutes;
-
-      for (final route in activeRoutes) {
-        // Adiciona marcadores de pickup (verde)
-        if (route.pickupLatitude != null && route.pickupLongitude != null) {
-          _trackingMarkers.add(
-            Marker(
-              markerId: MarkerId('pickup_${route.id}'),
-              position: LatLng(route.pickupLatitude!, route.pickupLongitude!),
-              infoWindow: InfoWindow(
-                title: 'Partida - Reserva ${route.reservaId}',
-                snippet: 'Contacto: ${_extractPhoneNumber(route.locationDescription)}',
-              ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-            ),
-          );
-        }
-
-        // Adiciona marcadores de dropoff (vermelho)
-        if (route.dropoffLatitude != null && route.dropoffLongitude != null) {
-          _trackingMarkers.add(
-            Marker(
-              markerId: MarkerId('dropoff_${route.id}'),
-              position: LatLng(route.dropoffLatitude!, route.dropoffLongitude!),
-              infoWindow: InfoWindow(
-                title: 'Destino - Reserva ${route.reservaId}',
-                snippet: 'Contacto: ${_extractPhoneNumber(route.locationDescription)}',
-              ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-            ),
-          );
-        }
-
-        // Adiciona rota entre pontos (azul)
-        if (route.pickupLatitude != null && 
-            route.pickupLongitude != null &&
-            route.dropoffLatitude != null && 
-            route.dropoffLongitude != null) {
-          _trackingPolylines.add(
-            Polyline(
-              polylineId: PolylineId('route_${route.id}'),
-              color: Colors.blue,
-              width: 3,
-              points: [
-                LatLng(route.pickupLatitude!, route.pickupLongitude!),
-                LatLng(route.dropoffLatitude!, route.dropoffLongitude!),
-              ],
-            ),
-          );
-        }
-
-        // Adiciona marcador do veículo (laranja) - posição simulada
-        if (route.pickupLatitude != null && route.pickupLongitude != null) {
-          final phone = _extractPhoneNumber(route.locationDescription);
-          final progress = Random().nextDouble();
-          final currentPosition = route.dropoffLatitude != null
-              ? LatLng(
-                  route.pickupLatitude! + (route.dropoffLatitude! - route.pickupLatitude!) * progress,
-                  route.pickupLongitude! + (route.dropoffLongitude! - route.pickupLongitude!) * progress)
-              : LatLng(route.pickupLatitude! + 0.01, route.pickupLongitude! + 0.01);
-
-          _trackingMarkers.add(
-            Marker(
-              markerId: MarkerId('vehicle_${route.id}'),
-              position: currentPosition,
-              infoWindow: InfoWindow(
-                title: 'Veículo em Rota - ${route.reservaId}',
-                snippet: 'Contacto: $phone\nProgresso: ${(progress * 100).toStringAsFixed(0)}%',
-              ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-            ),
-          );
-        }
-      }
-
-      // Ajusta a câmera para mostrar todas as rotas
-      if (_trackingMarkers.isNotEmpty && _trackingMapController != null) {
-        final bounds = _boundsFromLatLngList(_trackingMarkers.map((m) => m.position).toList());
-        _trackingMapController!.animateCamera(
-          CameraUpdate.newLatLngBounds(bounds, 100),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro no rastreamento: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isTrackingLoading = false);
-      }
-    }
-  }
-
-  LatLngBounds _boundsFromLatLngList(List<LatLng> list) {
-  double? x0, x1, y0, y1;
-  for (LatLng latLng in list) {
-    if (x0 == null) {
-      x0 = x1 = latLng.latitude;
-      y0 = y1 = latLng.longitude;
-    } else {
-      if (latLng.latitude > x1!) x1 = latLng.latitude;
-      if (latLng.latitude < x0) x0 = latLng.latitude;
-      if (latLng.longitude > y1!) y1 = latLng.longitude;
-      if (latLng.longitude < y0!) y0 = latLng.longitude;
-    }
-  }
-  return LatLngBounds(
-    northeast: LatLng(x1!, y1!),
-    southwest: LatLng(x0!, y0!),
-  );
-}
-
-  void _makePhoneCall(String phoneNumber) async {
-    // Implemente a lógica para fazer uma chamada telefônica
-    // Você precisará do pacote url_launcher
-    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-    
-    if (await canLaunchUrl(phoneUri)) {
-      await launchUrl(phoneUri);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível realizar a chamada para $phoneNumber')),
-      );
-    }
   }
 
   void _showVehicleDetails(veiculo_model.Veiculo vehicle) {

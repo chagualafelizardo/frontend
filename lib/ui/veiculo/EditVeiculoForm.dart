@@ -44,6 +44,7 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
   String _selectedCombustivel = 'GASOLINA';
   Uint8List? _imageBytes;
   bool _rentalIncludesDriver = false;
+  bool _isAvailable = false;
 
   final List<Uint8List> _additionalImages = [];
   List<String> _existingImageUrls = [];
@@ -162,7 +163,10 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
         imagemBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
         rentalIncludesDriver: _rentalIncludesDriver,
         createdAt: widget.veiculo.createdAt,
-        updatedAt: DateTime.now(),
+        updatedAt: DateTime.now(), 
+        isAvailable: _isAvailable, 
+        smsLockCommand: '', 
+        smsUnLockCommand: '', 
       );
 
       try {

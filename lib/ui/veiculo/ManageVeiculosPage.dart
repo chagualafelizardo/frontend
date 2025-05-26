@@ -172,8 +172,11 @@ void _confirmDeleteVeiculo(Veiculo veiculo) {
       state: veiculo.state,
       imagemBase64: veiculo.imagemBase64,
       rentalIncludesDriver: true, // Ajuste aqui se necessário
+      isAvailable: true,
+      smsLockCommand:veiculo.smsLockCommand,
+      smsUnLockCommand:veiculo.smsUnLockCommand,
       createdAt: veiculo.createdAt,
-      updatedAt: veiculo.updatedAt,
+      updatedAt: veiculo.updatedAt, 
     );
 
     showDialog(

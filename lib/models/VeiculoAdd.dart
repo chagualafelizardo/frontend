@@ -1,3 +1,6 @@
+import 'package:app/models/VeiculoDetails.dart';
+import 'package:app/models/Veiculoimg.dart';
+
 class VeiculoAdd {
   final int id;
   final String matricula;
@@ -12,7 +15,10 @@ class VeiculoAdd {
   final String tipoCombustivel;
   final String state;
   final String imagemBase64;
-  final bool rentalIncludesDriver; // Novo campo adicionado
+  final bool rentalIncludesDriver;
+  final bool isAvailable;
+  final String smsLockCommand;
+  final String smsUnLockCommand;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -30,7 +36,10 @@ class VeiculoAdd {
     required this.tipoCombustivel,
     required this.state,
     required this.imagemBase64,
-    required this.rentalIncludesDriver, // Incluindo o novo campo no construtor
+    required this.rentalIncludesDriver,
+    required this.isAvailable,
+    required this.smsLockCommand,
+    required this.smsUnLockCommand,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -74,11 +83,12 @@ class VeiculoAdd {
       state: json['state'],
       imagemBase64: json['image'],
       rentalIncludesDriver: json['rentalIncludesDriver'] ??
-          false, // Garantindo que tenha valor (false por padrão)
+          false, 
+                isAvailable: json['isAvailable'] ?? false,
+      smsLockCommand: json['smsLockCommand'] ?? '',
+      smsUnLockCommand: json['smsUnLockCommand'] ?? '',
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
   }
-
-  get details => null;
 }

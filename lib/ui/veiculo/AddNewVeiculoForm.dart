@@ -39,11 +39,14 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
   final TextEditingController _obsController = TextEditingController();
+  final TextEditingController _smsLockCommandController = TextEditingController();
+  final TextEditingController _smsUnLockCommandController = TextEditingController();
 
   String _selectedState = 'Free';
   String _selectedCombustivel = 'GASOLINA';
   Uint8List? _imageBytes;
   bool _rentalIncludesDriver = false;
+  bool _isAvailable = false;
 
   final List<Uint8List> _additionalImages = [];
   late TabController _tabController;
@@ -99,7 +102,10 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
         imagemBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
         rentalIncludesDriver: _rentalIncludesDriver,
         createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        updatedAt: DateTime.now(), 
+        isAvailable: _isAvailable, 
+        smsLockCommand: _smsLockCommandController.text, 
+        smsUnLockCommand: _smsUnLockCommandController.text, 
       );
 
       try {
@@ -322,7 +328,7 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
                                   spreadRadius: 2,
                                   blurRadius: 5,
                                   offset: const Offset(0, 3),
-                                ),
+                                )
                               ],
                             ),
                             child: _imageBytes != null
@@ -424,6 +430,52 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
                                       });
                                     },
                                     secondary: const Icon(Icons.directions_car, color: Colors.black54),
+                                  ),
+                                  SwitchListTile(
+                                    title: const Text('Is Available', style: TextStyle(color: Colors.black87, fontSize: 16)),
+                                    value: _isAvailable,
+                                    onChanged: (bool value) {
+                                      setState(() {
+                                        _isAvailable = value;
+                                      });
+                                    },
+                                    secondary: const Icon(Icons.check_circle, color: Colors.black54),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text('SMS Lock Command', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: TextField(
+                                      controller: _smsLockCommandController,
+                                      maxLines: 3,
+                                      decoration: InputDecoration(
+                                        contentPadding: const EdgeInsets.all(12),
+                                        border: InputBorder.none,
+                                        hintText: 'Enter SMS lock command...',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text('SMS Unlock Command', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: TextField(
+                                      controller: _smsUnLockCommandController,
+                                      maxLines: 3,
+                                      decoration: InputDecoration(
+                                        contentPadding: const EdgeInsets.all(12),
+                                        border: InputBorder.none,
+                                        hintText: 'Enter SMS unlock command...',
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),

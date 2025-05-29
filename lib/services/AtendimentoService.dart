@@ -11,6 +11,7 @@ import 'package:app/ui/alocacao/ManageAlocarMotoristaPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/services/VeiculoService.dart' as VeiculoService;
+import 'package:intl/intl.dart';
 
 class AtendimentoService {
   final String? baseUrl = dotenv.env['BASE_URL'];
@@ -508,6 +509,39 @@ Future<Map<String, dynamic>> fetchAtendimentoDetails(int atendimentoId) async {
     } catch (e) {
       print('Erro ao buscar atendimento por ID: $e');
       throw Exception('Erro ao buscar atendimento: $e');
+    }
+  }
+
+  Future<void> updateEndDate(int atendimentoId, DateTime newEndDate) async {
+    try {
+      // Prepara apenas os dados necessários para a atualização
+      final updateData = {
+        'data_chegada': newEndDate.toIso8601String(),
+      };
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/atendimento/$atendimentoId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(updateData),
+      );
+
+      if (response.statusCode == 200) {
+        print("Data de chegada atualizada com sucesso para ${DateFormat('dd/MM/yyyy').format(newEndDate)}");
+      } else {
+        final errorResponse = jsonDecode(response.body);
+        final errorMessage = errorResponse['message'] ?? 'Erro desconhecido';
+        print("Erro ao atualizar data de chegada: $errorMessage");
+        throw Exception('Falha na atualização: $errorMessage');
+      }
+    } on http.ClientException catch (e) {
+      print("Erro de conexão: ${e.message}");
+      throw Exception('Falha na comunicação com o servidor');
+    } on FormatException catch (e) {
+      print("Erro no formato dos dados: ${e.message}");
+      throw Exception('Erro no processamento dos dados');
+    } catch (error) {
+      print("Erro inesperado: $error");
+      throw Exception('Ocorreu um erro inesperado');
     }
   }
 

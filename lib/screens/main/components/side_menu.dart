@@ -126,6 +126,24 @@ class SideMenu extends StatelessWidget {
 
           ExpansionTile(
             leading: Icon(Icons.attach_money),
+            title: Text("Fines"),
+            childrenPadding: EdgeInsets.only(left: 20), // Ajuste de espaçamento para os subitens
+            children: [
+              ListTile(
+                leading: Icon(Icons.list),
+                title: Text("Type of Fines"),
+                onTap: () => onMenuSelected('/finestype'),
+              ),
+              ListTile(
+                leading: Icon(Icons.list),
+                title: Text("Fines recorded"),
+                onTap: () => onMenuSelected('/finesrecorded'),
+              ),
+            ],
+          ),
+
+          ExpansionTile(
+            leading: Icon(Icons.attach_money),
             title: Text("Payment"),
             childrenPadding: EdgeInsets.only(left: 20), // Ajuste de espaçamento para os subitens
             children: [

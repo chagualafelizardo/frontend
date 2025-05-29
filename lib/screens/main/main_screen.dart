@@ -9,6 +9,8 @@ import 'package:app/ui/item/ManageItemsPage.dart';
 import 'package:app/ui/itensentrega/ManageItensEntregaPage.dart';
 import 'package:app/ui/login/login_page.dart';
 import 'package:app/ui/manutencao/ManageManutencoesPage.dart';
+import 'package:app/ui/multa/ManageMultaPage.dart';
+import 'package:app/ui/multa/ManageTipoMultaPage.dart';
 import 'package:app/ui/oficina/ManageOficinasPage.dart';
 import 'package:app/ui/pagamento/ManageConfirmPaymentPage.dart';
 import 'package:app/ui/pagamento/ManagePaymentPage.dart';
@@ -68,6 +70,10 @@ class _MainScreenState extends State<MainScreen> {
         return ManageReservasPage();
       case '/finance':
         return ManageUsersEmployeeFinancialDetailsPage();
+      case '/finestype':
+        return ManageTipoMultaPage();
+      case '/finesrecorded':
+        return ManageMultaPage();
       case '/paymentCriteria':
         return ManagePaymentCriteriaPage();
       case '/createPayment':

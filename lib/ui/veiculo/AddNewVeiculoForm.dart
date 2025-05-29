@@ -33,8 +33,6 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
   final TextEditingController _numLugaresController = TextEditingController();
   final TextEditingController _numMotorController = TextEditingController();
   final TextEditingController _numPortasController = TextEditingController();
-
-  // Para detalhes do veiculo
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();

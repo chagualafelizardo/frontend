@@ -39,6 +39,8 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
   final TextEditingController _numMotorController = TextEditingController();
   final TextEditingController _numPortasController = TextEditingController();
   final VehicleHistoryRentService historyRentService = VehicleHistoryRentService(dotenv.env['BASE_URL']!);
+  final TextEditingController _smsLockCommandController = TextEditingController();
+  final TextEditingController _smsUnLockCommandController = TextEditingController();
 
   String _selectedState = 'Free';
   String _selectedCombustivel = 'GASOLINA';
@@ -70,6 +72,8 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
     _selectedCombustivel = widget.veiculo.tipoCombustivel;
     _selectedState = widget.veiculo.state;
     _rentalIncludesDriver = widget.veiculo.rentalIncludesDriver;
+    _smsLockCommandController.text = widget.veiculo.smsLockCommand;
+    _smsUnLockCommandController.text = widget.veiculo.smsUnLockCommand;
 
     // Carrega a imagem principal em segundo plano
     if (widget.veiculo.imagemBase64.isNotEmpty) {
@@ -165,8 +169,8 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
         createdAt: widget.veiculo.createdAt,
         updatedAt: DateTime.now(), 
         isAvailable: _isAvailable, 
-        smsLockCommand: '', 
-        smsUnLockCommand: '', 
+        smsLockCommand: _smsLockCommandController.text, 
+        smsUnLockCommand: _smsUnLockCommandController.text, 
       );
 
       try {
@@ -424,6 +428,36 @@ class _EditVeiculoFormState extends State<EditVeiculoForm>
                                       setState(() {
                                         _rentalIncludesDriver = value!;
                                       });
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Campo SMS Lock Command
+                                  TextFormField(
+                                    controller: _smsLockCommandController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Comando SMS para Bloqueio',
+                                      hintText: 'Ex: BLOQUEAR123'
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o comando de bloqueio';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Campo SMS Unlock Command
+                                  TextFormField(
+                                    controller: _smsUnLockCommandController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Comando SMS para Desbloqueio',
+                                      hintText: 'Ex: DESBLOQUEAR123'
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor, insira o comando de desbloqueio';
+                                      }
+                                      return null;
                                     },
                                   ),
                                 ],

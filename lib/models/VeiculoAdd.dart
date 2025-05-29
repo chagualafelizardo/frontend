@@ -57,6 +57,8 @@ class VeiculoAdd {
       'num_lugares': numLugares,
       'num_motor': numMotor,
       'num_portas': numPortas,
+      'smsLockCommand': smsLockCommand,
+      'smsUnLockCommand': smsUnLockCommand,
       'tipo_combustivel': tipoCombustivel,
       'state': state,
       'image': imagemBase64,

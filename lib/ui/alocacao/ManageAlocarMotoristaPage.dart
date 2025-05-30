@@ -1867,31 +1867,36 @@ void _showExtendServiceDialog(Atendimento atendimento) {
   );
 }
 
-void _showProcessFineDialog(Atendimento atendimento) async {
+Future<void> _showProcessFineDialog(Atendimento atendimento) async {
   final _formKey = GlobalKey<FormState>();
-  final _fineValueController = TextEditingController();
-  final _observationController = TextEditingController();
-  final _daysLate = DateTime.now().difference(atendimento.dataChegada!).inDays;
+  final valorController = TextEditingController();
+  final observationController = TextEditingController();
+  DateTime _selectedDataMulta = DateTime.now();
 
-  // Lista e seleção de tipos de multa
-  List<TipoMulta> tiposMulta = [];
-  TipoMulta? _selectedTipoMulta;
+  // Flags de controle
   bool _notifyCustomer = true;
   bool _blockRentals = false;
   bool _isLoading = false;
 
-  // Instancia o serviço
+  // Cálculo dos dias de atraso
+  final _daysLate = DateTime.now().difference(atendimento.dataChegada!).inDays;
+
+  // Listas de dados
+  List<TipoMulta> tiposMulta = [];
+  TipoMulta? _selectedTipoMulta;
+
   final tipoMultaService = TipoMultaService(dotenv.env['BASE_URL']!);
 
   try {
     tiposMulta = await tipoMultaService.fetchAll();
+
     if (tiposMulta.isNotEmpty) {
       _selectedTipoMulta = tiposMulta.firstWhere(
         (tipo) => tipo.description.toLowerCase().contains('late'),
         orElse: () => tiposMulta.first,
       );
       if (_selectedTipoMulta != null) {
-        _fineValueController.text = _selectedTipoMulta.valorpagar.toString();
+        valorController.text = _selectedTipoMulta.valorpagar.toString();
       }
     }
   } catch (e) {
@@ -1910,11 +1915,40 @@ void _showProcessFineDialog(Atendimento atendimento) async {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Days late: $_daysLate days', style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
-                  )),
+                  Text(
+                    'Days late: $_daysLate days',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[700],
+                    ),
+                  ),
                   const SizedBox(height: 16),
+
+                  // Seletor de data
+                  GestureDetector(
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDataMulta,
+                        firstDate: DateTime(DateTime.now().year - 5),
+                        lastDate: DateTime(DateTime.now().year + 5),
+                      );
+                      if (picked != null) {
+                        setState(() => _selectedDataMulta = picked);
+                      }
+                    },
+                    child: AbsorbPointer(
+                      child: TextFormField(
+                        decoration: const InputDecoration(labelText: 'Fine Date'),
+                        controller: TextEditingController(
+                          text: "${_selectedDataMulta.day.toString().padLeft(2, '0')}/${_selectedDataMulta.month.toString().padLeft(2, '0')}/${_selectedDataMulta.year}",
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Tipo de multa
                   DropdownButtonFormField<TipoMulta>(
                     value: _selectedTipoMulta,
                     items: tiposMulta.map((tipo) {
@@ -1927,7 +1961,7 @@ void _showProcessFineDialog(Atendimento atendimento) async {
                       setState(() {
                         _selectedTipoMulta = tipo;
                         if (tipo != null) {
-                          _fineValueController.text = tipo.valorpagar.toString();
+                          valorController.text = tipo.valorpagar.toString();
                         }
                       });
                     },
@@ -1935,46 +1969,40 @@ void _showProcessFineDialog(Atendimento atendimento) async {
                       labelText: 'Fine Type',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value == null) return 'Please select a fine type';
-                      return null;
-                    },
+                    validator: (value) => value == null ? 'Please select a fine type' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // Valor da multa
                   TextFormField(
-                    controller: _fineValueController,
+                    controller: valorController,
                     decoration: const InputDecoration(
-                      labelText: 'Fine Amount',
+                      labelText: 'Amount to Pay',
                       prefixText: 'MZN ',
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter the amount';
-                      }
-                      if (double.tryParse(value) == null) {
-                        return 'Invalid amount';
-                      }
+                      if (value == null || value.isEmpty) return 'Please enter the amount';
+                      if (double.tryParse(value) == null) return 'Invalid amount';
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // Observação
                   TextFormField(
-                    controller: _observationController,
+                    controller: observationController,
                     decoration: const InputDecoration(
                       labelText: 'Reason for Delay',
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 3,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter the reason';
-                      }
-                      return null;
-                    },
+                    validator: (value) => value == null || value.isEmpty ? 'Please enter the reason' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // Notificar cliente
                   CheckboxListTile(
                     title: const Text('Notify customer via SMS'),
                     value: _notifyCustomer,
@@ -1983,6 +2011,8 @@ void _showProcessFineDialog(Atendimento atendimento) async {
                     },
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
+
+                  // Bloquear futuras reservas
                   CheckboxListTile(
                     title: const Text('Block future rentals'),
                     value: _blockRentals,
@@ -2004,17 +2034,15 @@ void _showProcessFineDialog(Atendimento atendimento) async {
               onPressed: _isLoading ? null : () async {
                 if (_formKey.currentState!.validate()) {
                   setState(() => _isLoading = true);
-                  
+
                   try {
                     final Multa newMulta = Multa(
                       description: _selectedTipoMulta?.description ?? 'Late Return',
-                      valorpagar: double.parse(_fineValueController.text),
-                      observation: _observationController.text,
-                      atendimentoId: atendimento.id,
-                      // daysLate: _daysLate,
+                      valorpagar: double.parse(valorController.text),
+                      observation: observationController.text,
+                      dataMulta: _selectedDataMulta,
+                      atendimentoId: atendimento.id!,
                     );
-
-                    // Método atualizado para processar a multa, verificar mas tarde se devo aplicar
 
                     await _processLateFine(
                       atendimento.id!,
@@ -2036,7 +2064,7 @@ void _showProcessFineDialog(Atendimento atendimento) async {
                   }
                 }
               },
-              child: _isLoading 
+              child: _isLoading
                   ? const CircularProgressIndicator()
                   : const Text('Process Fine'),
             ),
@@ -2046,6 +2074,7 @@ void _showProcessFineDialog(Atendimento atendimento) async {
     ),
   );
 }
+
 
 // Método atualizado para processar a multa, verificar mas tarde se devo aplicar
 Future<void> _processLateFine(

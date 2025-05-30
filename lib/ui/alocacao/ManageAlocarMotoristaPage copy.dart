@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:app/models/ExtendServiceDay.dart';
 import 'package:app/models/Multa.dart';
+import 'package:app/models/TipoMulta.dart';
 import 'package:app/services/AtendimentoDocumentService.dart';
 import 'package:app/services/AtendimentoItemService.dart';
+import 'package:app/services/TipoMultasService.dart';
 import 'package:app/ui/user/UserDetailsPage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
@@ -826,6 +828,101 @@ Future<void> _showDeleteConfirmationDialog(int atendimentoId) async {
   );
 }
 
+  Future<void> _confirmDeleteExtension(int extensionId, int atendimentoId) async {
+    // Log inicial
+    debugPrint('Attempting to delete extension ID: $extensionId for atendimento ID: $atendimentoId');
+    
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: const Text('Are you sure you want to delete this extension?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              debugPrint('Deletion cancelled by user');
+              Navigator.pop(context, false);
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              debugPrint('User confirmed deletion');
+              Navigator.pop(context, true);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        debugPrint('Starting deletion process...');
+        await _extendServiceDayService.delete(extensionId);
+        debugPrint('Extension deleted successfully from API');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Extension deleted successfully')),
+          );
+          
+          debugPrint('Refreshing extensions list...');
+          setState(() {
+            _fetchExtendServiceDays(atendimentoId);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error deleting extension: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete extension: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteFine(int fineId, int atendimentoId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: const Text('Are you sure you want to delete this fine?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _multaService.deleteMulta(fineId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Fine deleted successfully')),
+          );
+          setState(() {
+            _fetchMultas(atendimentoId);
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete fine: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
 Future<Map<String, dynamic>> _fetchItemsAndDocuments(int atendimentoId) async {
   try {
     final items = await _atendimentoServiceItens.fetchAtendimentoItem(atendimentoId);
@@ -1246,15 +1343,24 @@ Future<Map<String, dynamic>> _fetchItemsAndDocuments(int atendimentoId) async {
                                     extension.notes,
                                     style: const TextStyle(
                                       fontSize: 14,
-                                      color: Color(0xFF616161), // Cinza escuro
+                                      color: Color(0xFF616161),
                                     ),
                                   ),
-                                  trailing: Text(
-                                    'Created: ${DateFormat('dd/MM/yyyy').format(extension.createdAt ?? DateTime.now())}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF616161), // Cinza escuro
-                                    ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Created: ${DateFormat('dd/MM/yyyy').format(extension.createdAt ?? DateTime.now())}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF616161),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                         onPressed: () => _confirmDeleteExtension(extension.id!, atendimentoId),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );
@@ -1344,22 +1450,34 @@ Future<Map<String, dynamic>> _fetchItemsAndDocuments(int atendimentoId) async {
                                   ),
                                   subtitle: Text(
                                     fine.observation ?? 'No observations',
-                                    style: const TextStyle(fontSize: 14),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: Color.fromARGB(221, 92, 91, 91)),
                                   ),
-                                  trailing: Column(
+                                  trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text(
-                                        'MZN ${fine.valorpagar.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.red),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'MZN ${fine.valorpagar.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: Colors.red),
+                                          ),
+                                          Text(
+                                            DateFormat('dd/MM/yyyy').format(fine.createdAt ?? DateTime.now()),
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        DateFormat('dd/MM/yyyy').format(fine.createdAt ?? DateTime.now()),
-                                        style: const TextStyle(fontSize: 12),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () => _confirmDeleteFine(fine.id!, atendimentoId),
                                       ),
                                     ],
                                   ),
@@ -1749,110 +1867,215 @@ void _showExtendServiceDialog(Atendimento atendimento) {
   );
 }
 
-void _showProcessFineDialog(Atendimento atendimento) {
+void _showProcessFineDialog(Atendimento atendimento) async {
   final _formKey = GlobalKey<FormState>();
   final _fineValueController = TextEditingController();
   final _observationController = TextEditingController();
   final _daysLate = DateTime.now().difference(atendimento.dataChegada!).inDays;
 
-  showDialog(
+  // Lista e seleção de tipos de multa
+  List<TipoMulta> tiposMulta = [];
+  TipoMulta? _selectedTipoMulta;
+  bool _notifyCustomer = true;
+  bool _blockRentals = false;
+  bool _isLoading = false;
+
+  // Instancia o serviço
+  final tipoMultaService = TipoMultaService(dotenv.env['BASE_URL']!);
+
+  try {
+    tiposMulta = await tipoMultaService.fetchAll();
+    if (tiposMulta.isNotEmpty) {
+      _selectedTipoMulta = tiposMulta.firstWhere(
+        (tipo) => tipo.description.toLowerCase().contains('late'),
+        orElse: () => tiposMulta.first,
+      );
+      if (_selectedTipoMulta != null) {
+        _fineValueController.text = _selectedTipoMulta.valorpagar.toString();
+      }
+    }
+  } catch (e) {
+    print('Erro ao buscar tipos de multa: $e');
+  }
+
+  await showDialog(
     context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Process Late Return Fine'),
-        content: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Days late: $_daysLate days'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _fineValueController,
-                  decoration: const InputDecoration(
-                    labelText: 'Fine Amount',
-                    prefixText: 'MZN ',
+    builder: (_) => StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Process Late Return Fine'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Days late: $_daysLate days', style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[700],
+                  )),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<TipoMulta>(
+                    value: _selectedTipoMulta,
+                    items: tiposMulta.map((tipo) {
+                      return DropdownMenuItem<TipoMulta>(
+                        value: tipo,
+                        child: Text(tipo.description),
+                      );
+                    }).toList(),
+                    onChanged: (tipo) {
+                      setState(() {
+                        _selectedTipoMulta = tipo;
+                        if (tipo != null) {
+                          _fineValueController.text = tipo.valorpagar.toString();
+                        }
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Fine Type',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null) return 'Please select a fine type';
+                      return null;
+                    },
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the amount';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Invalid amount';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _observationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason for Delay',
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _fineValueController,
+                    decoration: const InputDecoration(
+                      labelText: 'Fine Amount',
+                      prefixText: 'MZN ',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the amount';
+                      }
+                      if (double.tryParse(value) == null) {
+                        return 'Invalid amount';
+                      }
+                      return null;
+                    },
                   ),
-                  maxLines: 3,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter the reason';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                CheckboxListTile(
-                  title: const Text('Notify customer via SMS'),
-                  value: true,
-                  onChanged: (value) {},
-                ),
-                const SizedBox(height: 16),
-                CheckboxListTile(
-                  title: const Text('Block future rentals'),
-                  value: false,
-                  onChanged: (value) {},
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _observationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for Delay',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the reason';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  CheckboxListTile(
+                    title: const Text('Notify customer via SMS'),
+                    value: _notifyCustomer,
+                    onChanged: (value) {
+                      setState(() => _notifyCustomer = value ?? false);
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  CheckboxListTile(
+                    title: const Text('Block future rentals'),
+                    value: _blockRentals,
+                    onChanged: (value) {
+                      setState(() => _blockRentals = value ?? false);
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_formKey.currentState!.validate()) {
-                try {
-                  await _processLateFine(
-                    atendimento.id!,
-                    double.parse(_fineValueController.text),
-                    _observationController.text,
-                    _daysLate,
-                  );
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Fine processed successfully!')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error processing fine: $e')),
-                  );
+          actions: [
+            TextButton(
+              onPressed: _isLoading ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: _isLoading ? null : () async {
+                if (_formKey.currentState!.validate()) {
+                  setState(() => _isLoading = true);
+                  
+                  try {
+                    final Multa newMulta = Multa(
+                      description: _selectedTipoMulta?.description ?? 'Late Return',
+                      valorpagar: double.parse(_fineValueController.text),
+                      observation: _observationController.text,
+                      atendimentoId: atendimento.id,
+                      // daysLate: _daysLate,
+                    );
+
+                    // Método atualizado para processar a multa, verificar mas tarde se devo aplicar
+
+                    await _processLateFine(
+                      atendimento.id!,
+                      newMulta,
+                      notifyCustomer: _notifyCustomer,
+                      blockRentals: _blockRentals,
+                    );
+
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Fine processed successfully!')),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error processing fine: $e')),
+                    );
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
+                  }
                 }
-              }
-            },
-            child: const Text('Process Fine'),
-          ),
-        ],
-      );
-    },
+              },
+              child: _isLoading 
+                  ? const CircularProgressIndicator()
+                  : const Text('Process Fine'),
+            ),
+          ],
+        );
+      },
+    ),
   );
 }
 
-Future<void> _processLateFine(int serviceId, double fineValue, String observation, int daysLate) async {
-  // Implementar chamada à API para processar a multa
-  // Exemplo:
-  // await ApiService.processLateFine(serviceId, fineValue, observation, daysLate);
+// Método atualizado para processar a multa, verificar mas tarde se devo aplicar
+Future<void> _processLateFine(
+  int atendimentoId, 
+  Multa multa, {
+  bool notifyCustomer = true,
+  bool blockRentals = false,
+}) async {
+  // 1. Registrar a multa
+  await _multaService.createMulta(multa);
+  
+  // // 2. Atualizar status do atendimento
+  // await AtendimentoService(dotenv.env['BASE_URL']!)
+  //     .markAsLate(atendimentoId);
+  
+  // // 3. Opcional: Notificar cliente
+  // if (notifyCustomer) {
+  //   await NotificationService.sendSms(
+  //     atendimentoId: atendimentoId,
+  //     message: 'Late return fine applied: MZN ${multa.valorpagar}',
+  //   );
+  // }
+  
+  // // 4. Opcional: Bloquear alugueres futuros
+  // if (blockRentals) {
+  //   await CustomerService.blockCustomer(
+  //     atendimentoId: atendimentoId,
+  //     reason: 'Late return',
+  //   );
+  // }
 }
 
 Widget _buildDetailRow(IconData icon, String label, String value) {

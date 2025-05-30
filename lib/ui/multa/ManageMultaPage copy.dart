@@ -45,7 +45,6 @@ class _ManageMultaPageState extends State<ManageMultaPage> {
     }
 
   Future<void> _showAddDialog({Multa? multa}) async {
-    DateTime _selectedDataMulta = multa?.dataMulta ?? DateTime.now();
     print('[DEBUG] Iniciando _showAddDialog. Modo: ${multa == null ? "Criação" : "Edição"}');
     final valorController = TextEditingController(
       text: multa != null ? multa.valorpagar.toString() : '',
@@ -91,6 +90,10 @@ class _ManageMultaPageState extends State<ManageMultaPage> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setState) {
+          // Declare _selectedDataMulta dentro do StatefulBuilder e inicialize com a data atual se for nula
+          DateTime _selectedDataMulta = multa?.dataMulta ?? DateTime.now();
+          print('[DEBUG] Data inicial: $_selectedDataMulta');
+          // Crie um TextEditingController para a data dentro do StatefulBuilder
           final dataController = TextEditingController(
             text: "${_selectedDataMulta.day.toString().padLeft(2, '0')}/${_selectedDataMulta.month.toString().padLeft(2, '0')}/${_selectedDataMulta.year}",
           );
@@ -112,15 +115,16 @@ class _ManageMultaPageState extends State<ManageMultaPage> {
                       if (picked != null && picked != _selectedDataMulta) {
                         setState(() {
                           _selectedDataMulta = picked;
+                          // Atualize o controlador de texto com a nova data
+                          dataController.text = "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+                          print('Data selecionada: $_selectedDataMulta'); // Debug
                         });
                       }
                     },
                     child: AbsorbPointer(
                       child: TextFormField(
                         decoration: const InputDecoration(labelText: 'Fine Date'),
-                        controller: TextEditingController(
-                          text: "${_selectedDataMulta.day.toString().padLeft(2, '0')}/${_selectedDataMulta.month.toString().padLeft(2, '0')}/${_selectedDataMulta.year}",
-                        ),
+                        controller: dataController, // Use o controlador criado aqui
                       ),
                     ),
                   ),

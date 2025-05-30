@@ -66,6 +66,14 @@ class MultaService {
 
 
   Future<Multa> createMulta(Multa multa) async {
+    print('[API] Enviando requisição para criar multa');
+    print('[API] Dados enviados:');
+    print('- description: ${multa.description}');
+    print('- valorpagar: ${multa.valorpagar}');
+    print('- observation: ${multa.observation}');
+    print('- atendimentoId: ${multa.atendimentoId}');
+    print('- dataMulta: ${multa.dataMulta?.toIso8601String()}');
+
     final response = await http.post(
       Uri.parse('$baseUrl/multa'),
       headers: {'Content-Type': 'application/json'},
@@ -73,21 +81,30 @@ class MultaService {
         'description': multa.description,
         'valorpagar': multa.valorpagar,
         'observation': multa.observation,
-        'atendimentoId': multa.atendimentoId, // Adicionado aqui
+        'atendimentoId': multa.atendimentoId,
+        'dataMulta': multa.dataMulta?.toIso8601String(), // Garante o formato ISO
       }),
     );
+
+    print('[API] Resposta recebida:');
+    print('- Status Code: ${response.statusCode}');
+    print('- Body: ${response.body}');
 
     if (response.statusCode == 201) {
       final Map<String, dynamic> responseBody = json.decode(response.body);
       if (responseBody['success'] == true) {
+        print('[API] Multa criada com sucesso');
         return Multa.fromJson(responseBody['data']);
       } else {
+        print('[API] Erro na resposta: ${responseBody['message']}');
         throw Exception(responseBody['message'] ?? 'Failed to create fine');
       }
     } else if (response.statusCode == 400) {
       final Map<String, dynamic> errorBody = json.decode(response.body);
+      print('[API] Erro de validação: ${errorBody['errors']}');
       throw Exception(errorBody['errors']?.join('\n') ?? 'Validation error');
     } else {
+      print('[API] Erro desconhecido: ${response.statusCode}');
       throw Exception('Failed to create fine. Status code: ${response.statusCode}');
     }
   }
@@ -101,6 +118,7 @@ class MultaService {
         'valorpagar': multa.valorpagar,
         'observation': multa.observation,
         'atendimentoId': multa.atendimentoId, // Adicionado aqui
+        'dataMulta': multa.dataMulta?.toIso8601String(), // Garante o formato ISO
       }),
     );
 

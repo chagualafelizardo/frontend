@@ -21,7 +21,7 @@ class ManageReservasPage extends StatefulWidget {
   _ManageReservasPageState createState() => _ManageReservasPageState();
 }
 
-class _ManageReservasPageState extends State<ManageReservasPage> with SingleTickerProviderStateMixin {
+class _ManageReservasPageState extends State<ManageReservasPage> {
   final ReservaService _reservaService = ReservaService(dotenv.env['BASE_URL']!);
   List<Reserva> _reservas = [];
   List<Reserva> _filteredReservas = [];
@@ -33,34 +33,22 @@ class _ManageReservasPageState extends State<ManageReservasPage> with SingleTick
   bool _isGridView = true;
   DateTime? _startDate;
   DateTime? _endDate;
-  late TabController _tabController;
-  List<Reserva> _confirmedReservas = []; // Nova lista para reservas confirmadas
-  List<Reserva> _filteredConfirmedReservas = []; // Lista filtrada de reservas confirmadas
 
   final TextEditingController _searchController = TextEditingController();
   String _destinationFilter = '';
   String _matriculaFilter = '';
   String _dateFilter = '';
-  bool _isLoadingConfirmed = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _fetchReservas();
-    _fetchConfirmedReservation(); // Carrega as reservas confirmadas
     _searchController.addListener(() {
       _onSearchChanged(_searchController.text);
     });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-Future<void> _fetchReservas() async {
+  Future<void> _fetchReservas() async {
     if (_isLoading || !_hasMore) return;
 
     setState(() {
@@ -92,34 +80,6 @@ Future<void> _fetchReservas() async {
       print('Error fetching reservas: $e');
       setState(() {
         _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _fetchConfirmedReservation() async {
-    if (_isLoadingConfirmed) return;
-
-    setState(() {
-      _isLoadingConfirmed = true;
-    });
-
-    try {
-      List<Reserva> reservas = await _reservaService.getReservas(
-        page: _currentPage,
-        pageSize: _pageSize,
-      );
-
-      setState(() {
-        _confirmedReservas = reservas
-            .where((reserva) => reserva.state == "Confirmed")
-            .toList();
-        _filteredConfirmedReservas = _confirmedReservas;
-        _isLoadingConfirmed = false;
-      });
-    } catch (e) {
-      print('Error fetching confirmed reservas: $e');
-      setState(() {
-        _isLoadingConfirmed = false;
       });
     }
   }
@@ -846,127 +806,115 @@ Future<void> _fetchReservas() async {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Reservations'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.list), text: 'Reservations'),
-            Tab(icon: Icon(Icons.analytics), text: 'Confirmed Reservations'),
-          ],
-        ),
         actions: [
-          if (_tabController.index == 0)
-            IconButton(
-              icon: Icon(
-                _isGridView ? Icons.list : Icons.grid_view,
-                color: Colors.white,
-              ),
-              onPressed: () {
-                setState(() {
-                  _isGridView = !_isGridView;
-                });
-              },
+          IconButton(
+            icon: Icon(
+              _isGridView ? Icons.list : Icons.grid_view,
+              color: Colors.white,
             ),
+            onPressed: () {
+              setState(() {
+                _isGridView = !_isGridView;
+              });
+            },
+          ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Primeira Tab - Lista de Reservas
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          labelText: 'Search Destination',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: _onSearchChanged,
-                      ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search Destination',
+                      prefixIcon: Icon(Icons.search),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Matricula',
-                        ),
-                        onChanged: _onMatriculaChanged,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _selectDateRange(context),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Date Range',
-                            border: OutlineInputBorder(),
-                            suffixIcon: _startDate != null || _endDate != null
-                                ? Icon(Icons.filter_alt, color: Colors.blue)
-                                : Icon(Icons.calendar_today),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _startDate == null && _endDate == null
-                                    ? 'Select date range'
-                                    : '${_startDate != null ? DateFormat('yyyy-MM-dd').format(_startDate!) : ''}'
-                                        ' - '
-                                        '${_endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : ''}',
-                              ),
-                              if (_startDate != null || _endDate != null)
-                                IconButton(
-                                  icon: Icon(Icons.clear, size: 18),
-                                  onPressed: () {
-                                    setState(() {
-                                      _startDate = null;
-                                      _endDate = null;
-                                      _applyFilters();
-                                    });
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                    onChanged: _onSearchChanged,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _filteredReservas.isEmpty && !_isLoading
-                    ? const Center(child: Text('No reservations found'))
-                    : _isGridView
-                        ? GridView.builder(
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 4,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
-                              childAspectRatio: 1.5,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Matricula',
+                    ),
+                    onChanged: _onMatriculaChanged,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _selectDateRange(context),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Date Range',
+                        border: OutlineInputBorder(),
+                        suffixIcon: _startDate != null || _endDate != null
+                            ? Icon(Icons.filter_alt, color: Colors.blue)
+                            : Icon(Icons.calendar_today),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _startDate == null && _endDate == null
+                                ? 'Select date range'
+                                : '${_startDate != null ? DateFormat('yyyy-MM-dd').format(_startDate!) : ''}'
+                                    ' - '
+                                    '${_endDate != null ? DateFormat('yyyy-MM-dd').format(_endDate!) : ''}',
+                          ),
+                          if (_startDate != null || _endDate != null)
+                            IconButton(
+                              icon: Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _startDate = null;
+                                  _endDate = null;
+                                  _applyFilters();
+                                });
+                              },
                             ),
-                            itemCount: _filteredReservas.length + (_hasMore ? 0 : 1),
-                            itemBuilder: (context, index) {
-                              var reserva = _filteredReservas[index];
-                              return Card(
-                                margin: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ListTile(
-                                      title: Text('Reserva ID: ${reserva.id}'),
-                                      subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Client: ${reserva.user.firstName}'),
-                                          Text('Destination: ${reserva.destination}'),
-                                          Text('Reserve Date: ${reserva.date}'),
-                                          Text('Number of Days: ${reserva.numberOfDays}'),
-                                          Row(
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _filteredReservas.isEmpty && !_isLoading
+                ? const Center(child: Text('No reservations found'))
+                : _isGridView
+                    ? GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1.5,
+                        ),
+                        itemCount: _filteredReservas.length + (_hasMore ? 0 : 1),
+                        itemBuilder: (context, index) {
+                          var reserva = _filteredReservas[index];
+                          return Card(
+                            margin: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ListTile(
+                                  title: Text('Reserva ID: ${reserva.id}'),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Client: ${reserva.user.firstName}'),
+                                      Text('Destination: ${reserva.destination}'),
+                                      Text('Reserve Date: ${reserva.date}'),
+                                      Text('Number of Days: ${reserva.numberOfDays}'),
+                                        Row(
                                             children: [
                                               Chip(
                                                 label: Text(
@@ -983,147 +931,12 @@ Future<void> _fetchReservas() async {
                                                   reserva.isPaid,
                                                   style: const TextStyle(color: Colors.white),
                                                 ),
-                                                backgroundColor: reserva.isPaid == 'Paid'
+                                                backgroundColor: reserva.isPaid =='Paid'
                                                     ? Colors.green.shade700
                                                     : Colors.red.shade700,
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 8.0),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.person, color: Colors.blue),
-                                              const SizedBox(width: 8.0),
-                                              Text(
-                                                'User: ${reserva.user.firstName ?? 'Unknown'} ${reserva.user.lastName ?? 'Unknown'}',
-                                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                              ),
-                                              const SizedBox(width: 8.0),
-                                              Tooltip(
-                                                message: 'See more customer details',
-                                                child: IconButton(
-                                                  onPressed: () async {
-                                                    try {
-                                                      UserService userService = UserService();
-                                                      User userDetails = await userService.getUserByName(reserva.clientId);
-                                                      _showUserDetails(userDetails);
-                                                    } catch (error) {
-                                                      print('Erro ao buscar detalhes do usuário: $error');
-                                                    }
-                                                  },
-                                                  icon: const Icon(Icons.arrow_forward),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.car_repair, color: Colors.green),
-                                              const SizedBox(width: 8.0),
-                                              Text(
-                                                'Veiculo: ${reserva.veiculo.matricula}',
-                                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                              ),
-                                              const SizedBox(width: 8.0),
-                                              Tooltip(
-                                                message: 'See more vehicle details',
-                                                child: IconButton(
-                                                  onPressed: () async {
-                                                    try {
-                                                      VeiculoService veiculoService = VeiculoService();
-                                                      Veiculo veiculoDetails = await veiculoService.getVeiculoByMatricula(reserva.veiculo.matricula);
-                                                      _showVeiculoDetailsDialog(veiculoDetails);
-                                                    } catch (error) {
-                                                      print('Erro ao buscar detalhes do veículo: $error');
-                                                    }
-                                                  },
-                                                  icon: const Icon(Icons.arrow_forward),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (reserva.state == 'Not Confirmed')
-                                            Tooltip(
-                                              message: 'Confirm reservation',
-                                              child: Material(
-                                                color: Colors.lightBlue,
-                                                shape: const CircleBorder(),
-                                                child: InkWell(
-                                                  borderRadius: BorderRadius.circular(50),
-                                                  onTap: () => _confirmReserva(reserva.id),
-                                                  child: const Padding(
-                                                    padding: EdgeInsets.all(8.0),
-                                                    child: Icon(Icons.check, color: Colors.white),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          Tooltip(
-                                            message: 'Delete reservation',
-                                            child: Material(
-                                              color: Colors.redAccent,
-                                              shape: const CircleBorder(),
-                                              child: InkWell(
-                                                borderRadius: BorderRadius.circular(50),
-                                                onTap: () => _deleteReserva(reserva.id),
-                                                child: const Padding(
-                                                  padding: EdgeInsets.all(8.0),
-                                                  child: Icon(Icons.delete_forever, color: Colors.white),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          )
-                        : ListView.builder(
-                            itemCount: _filteredReservas.length + (_hasMore ? 0 : 1),
-                            itemBuilder: (context, index) {
-                              var reserva = _filteredReservas[index];
-                              return Card(
-                                margin: const EdgeInsets.all(8.0),
-                                child: ListTile(
-                                  title: Text('Reserva ID: ${reserva.id}'),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Client: ${reserva.user.firstName}'),
-                                      Text('Destination: ${reserva.destination}'),
-                                      Text('Reserve Date: ${reserva.date}'),
-                                      Text('Number of Days: ${reserva.numberOfDays}'),
-                                      Row(
-                                        children: [
-                                          Chip(
-                                            label: Text(
-                                              reserva.state,
-                                              style: const TextStyle(color: Colors.white),
-                                            ),
-                                            backgroundColor: reserva.state == 'Confirmed'
-                                                ? Colors.green
-                                                : Colors.orange,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Chip(
-                                            label: Text(
-                                              reserva.isPaid,
-                                              style: const TextStyle(color: Colors.white),
-                                            ),
-                                            backgroundColor: reserva.isPaid == 'Paid'
-                                                ? Colors.green.shade700
-                                                : Colors.red.shade700,
-                                          ),
-                                        ],
-                                      ),
                                       const SizedBox(height: 8.0),
                                       Row(
                                         children: [
@@ -1198,128 +1011,118 @@ Future<void> _fetchReservas() async {
                                             ),
                                           ),
                                         ),
-                                      Tooltip(
-                                        message: 'Delete reservation',
-                                        child: Material(
-                                          color: Colors.redAccent,
-                                          shape: const CircleBorder(),
-                                          child: InkWell(
-                                            borderRadius: BorderRadius.circular(50),
-                                            onTap: () => _deleteReserva(reserva.id),
-                                            child: const Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: Icon(Icons.delete_forever, color: Colors.white),
+                                        Tooltip(
+                                          message: 'Delete reservation',
+                                          child: Material(
+                                            color: Colors.redAccent,
+                                            shape: const CircleBorder(),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(50),
+                                              onTap: () => _deleteReserva(reserva.id),
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.delete_forever, color: Colors.white),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      )
+                                        )
                                     ],
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-              ),
-              
-              if (_isLoading)
-                const CircularProgressIndicator()
-              else
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      onPressed: _goToPreviousPage,
-                      icon: const Icon(Icons.arrow_back),
-                    ),
-                    IconButton(
-                      onPressed: _goToNextPage,
-                      icon: const Icon(Icons.arrow_forward),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-
-          // Segunda Tab - Reservas Confirmadas
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search Destination',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _filteredConfirmedReservas = _confirmedReservas
-                                .where((reserva) => reserva.destination
-                                    .toLowerCase()
-                                    .contains(value.toLowerCase()))
-                                .toList();
-                          });
+                              ],
+                            ),
+                          );
                         },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Matricula',
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _filteredConfirmedReservas = _confirmedReservas
-                                .where((reserva) => reserva.veiculo.matricula
-                                    .toLowerCase()
-                                    .contains(value.toLowerCase()))
-                                .toList();
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _filteredConfirmedReservas.isEmpty && !_isLoading
-                    ? const Center(child: Text('No confirmed reservations found'))
+                      )
                     : ListView.builder(
-                        itemCount: _filteredConfirmedReservas.length,
+                        itemCount: _filteredReservas.length + (_hasMore ? 0 : 1),
                         itemBuilder: (context, index) {
-                          var reserva = _filteredConfirmedReservas[index];
+                          var reserva = _filteredReservas[index];
                           return Card(
                             margin: const EdgeInsets.all(8.0),
                             child: ListTile(
-                              title: Text('Reservation #${reserva.id}'),
+                              title: Text('Reserva ID: ${reserva.id}'),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Client: ${reserva.user.firstName} ${reserva.user.lastName}'),
-                                  Text('Destination: ${reserva.destination}'),
-                                  Text('Date: ${DateFormat('yyyy-MM-dd').format(reserva.date)}'),
-                                  Text('Days: ${reserva.numberOfDays}'),
+                                      Text('Client: ${reserva.user.firstName}'),
+                                      Text('Destination: ${reserva.destination}'),
+                                      Text('Reserve Date: ${reserva.date}'),
+                                      Text('Number of Days: ${reserva.numberOfDays}'),
+Row(
+                                          children: [
+                                            Chip(
+                                              label: Text(
+                                                reserva.state,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.state == 'Confirmed'
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Chip(
+                                              label: Text(
+                                                reserva.isPaid,
+                                                style: const TextStyle(color: Colors.white),
+                                              ),
+                                              backgroundColor: reserva.isPaid =='Paid'
+                                                  ? Colors.green.shade700
+                                                  : Colors.red.shade700,
+                                            ),
+                                          ],
+                                        ),
+
+                                  const SizedBox(height: 8.0),
                                   Row(
                                     children: [
-                                      Chip(
-                                        label: Text(
-                                          'Confirmed',
-                                          style: const TextStyle(color: Colors.white),
-                                        ),
-                                        backgroundColor: Colors.green,
+                                      const Icon(Icons.person, color: Colors.blue),
+                                      const SizedBox(width: 8.0),
+                                      Text(
+                                        'User: ${reserva.user.firstName ?? 'Unknown'} ${reserva.user.lastName ?? 'Unknown'}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Chip(
-                                        label: Text(
-                                          reserva.isPaid,
-                                          style: const TextStyle(color: Colors.white),
+                                      const SizedBox(width: 8.0),
+                                      Tooltip(
+                                        message: 'See more customer details',
+                                        child: IconButton(
+                                          onPressed: () async {
+                                            try {
+                                              UserService userService = UserService();
+                                              User userDetails = await userService.getUserByName(reserva.clientId);
+                                              _showUserDetails(userDetails);
+                                            } catch (error) {
+                                              print('Erro ao buscar detalhes do usuário: $error');
+                                            }
+                                          },
+                                          icon: const Icon(Icons.arrow_forward),
                                         ),
-                                        backgroundColor: reserva.isPaid == 'Paid'
-                                            ? Colors.green.shade700
-                                            : Colors.red.shade700,
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.car_repair, color: Colors.green),
+                                      const SizedBox(width: 8.0),
+                                      Text(
+                                        'Veiculo: ${reserva.veiculo.matricula}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(width: 8.0),
+                                      Tooltip(
+                                        message: 'See more vehicle details',
+                                        child: IconButton(
+                                          onPressed: () async {
+                                            try {
+                                              VeiculoService veiculoService = VeiculoService();
+                                              Veiculo veiculoDetails = await veiculoService.getVeiculoByMatricula(reserva.veiculo.matricula);
+                                              _showVeiculoDetailsDialog(veiculoDetails);
+                                            } catch (error) {
+                                              print('Erro ao buscar detalhes do veículo: $error');
+                                            }
+                                          },
+                                          icon: const Icon(Icons.arrow_forward),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1328,185 +1131,69 @@ Future<void> _fetchReservas() async {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.visibility),
-                                    color: Colors.blue,
-                                    onPressed: () {
-                                      _showReservationDetails(reserva);
-                                    },
+                                  if (reserva.state == 'Not Confirmed')
+                                    Tooltip(
+                                    message: 'Confirm reservation',
+                                    child: Material(
+                                      color: Colors.lightBlue,
+                                      shape: const CircleBorder(),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(50),
+                                        onTap: () => _confirmReserva(reserva.id),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Icon(Icons.check, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.print),
-                                    color: Colors.grey,
-                                    onPressed: () {
-                                      _printReservation(reserva);
-                                    },
-                                  ),
+                                  Tooltip(
+                                    message: 'Delete reservation',
+                                    child: Material(
+                                      color: Colors.redAccent,
+                                      shape: const CircleBorder(),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(50),
+                                        onTap: () => _deleteReserva(reserva.id),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Icon(Icons.delete_forever, color: Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                  )
                                 ],
                               ),
                             ),
                           );
                         },
                       ),
-              ),
-              if (_isLoading)
-                const CircularProgressIndicator()
-            ],
           ),
+          if (_isLoading)
+            const CircularProgressIndicator()
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _goToPreviousPage,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                IconButton(
+                  onPressed: _goToNextPage,
+                  icon: const Icon(Icons.arrow_forward),
+                ),
+              ],
+            ),
         ],
       ),
-        
-      floatingActionButton: _tabController.index == 0
-          ? FloatingActionButton(
-              onPressed: _showAddNewReservaForm,
-              backgroundColor: Colors.blue,
-              tooltip: 'Add New Reservation',
-              child: const Icon(Icons.add),
-            )
-          : null,
-    );
-  }
-
-  // Método auxiliar para mostrar detalhes da reserva
-void _showReservationDetails(Reserva reserva) {
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Reservation #${reserva.id}'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailItem(Icons.person, 'Client:', '${reserva.user.firstName} ${reserva.user.lastName}'),
-              _buildDetailItem(Icons.place, 'Destination:', reserva.destination),
-              _buildDetailItem(Icons.date_range, 'Date:', DateFormat('yyyy-MM-dd').format(reserva.date)),
-              _buildDetailItem(Icons.calendar_view_day, 'Days:', reserva.numberOfDays.toString()),
-              _buildDetailItem(Icons.car_rental, 'Vehicle:', '${reserva.veiculo.marca} ${reserva.veiculo.modelo} (${reserva.veiculo.matricula})'),
-              _buildDetailItem(Icons.payment, 'Payment Status:', reserva.isPaid),
-              _buildDetailItem(Icons.star, 'Status:', reserva.state),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-// Método auxiliar para construir itens de detalhe
-Widget _buildDetailItem(IconData icon, String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.blue),
-        const SizedBox(width: 16),
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-// Método auxiliar para imprimir reserva (simulado)
-void _printReservation(Reserva reserva) {
-  // Implemente a lógica de impressão aqui
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Printing reservation #${reserva.id}...')),
-  );
-}
-
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: color),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddNewReservaForm,
+        backgroundColor: Colors.blue,
+        tooltip: 'Add New Reservation',
+        child: const Icon(Icons.add),
       ),
     );
-  }
-
-  List<Widget> _buildRecentReservationsList() {
-    final recentReservas = _reservas.take(5).toList();
-    
-    if (recentReservas.isEmpty) {
-      return [
-        const Center(
-          child: Text('No recent reservations'),
-        ),
-      ];
-    }
-    
-    return recentReservas.map((reserva) {
-      return Card(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: reserva.state == 'Confirmed' 
-                ? Colors.green 
-                : Colors.orange,
-            child: Icon(
-              reserva.state == 'Confirmed' 
-                  ? Icons.check 
-                  : Icons.pending,
-              color: Colors.white,
-            ),
-          ),
-          title: Text('Reservation #${reserva.id}'),
-          subtitle: Text('${reserva.destination} - ${reserva.date}'),
-          trailing: Chip(
-            label: Text(
-              reserva.isPaid,
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: reserva.isPaid == 'Paid'
-                ? Colors.green
-                : Colors.red,
-          ),
-        ),
-      );
-    }).toList();
   }
 }
 
@@ -1525,6 +1212,7 @@ class VeiculoService {
     }
   }
 }
+
 
 class UserService {
   Future<User> getUserByName(int userId) async {

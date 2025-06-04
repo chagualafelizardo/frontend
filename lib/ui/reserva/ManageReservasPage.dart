@@ -36,6 +36,11 @@ class _ManageReservasPageState extends State<ManageReservasPage> with SingleTick
   late TabController _tabController;
   List<Reserva> _confirmedReservas = []; // Nova lista para reservas confirmadas
   List<Reserva> _filteredConfirmedReservas = []; // Lista filtrada de reservas confirmadas
+  DateTime? _startDateConfirmed;
+  DateTime? _endDateConfirmed;
+  String _destinationFilterConfirmed = '';
+  String _matriculaFilterConfirmed = '';
+
 
   final TextEditingController _searchController = TextEditingController();
   String _destinationFilter = '';
@@ -48,7 +53,8 @@ class _ManageReservasPageState extends State<ManageReservasPage> with SingleTick
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _fetchReservas();
-    _fetchConfirmedReservation(); // Carrega as reservas confirmadas
+    _applyFiltersConfirmed();
+    _fetchConfirmedReservation();
     _searchController.addListener(() {
       _onSearchChanged(_searchController.text);
     });
@@ -96,33 +102,113 @@ Future<void> _fetchReservas() async {
     }
   }
 
-  Future<void> _fetchConfirmedReservation() async {
-    if (_isLoadingConfirmed) return;
+  // Atualize o método para aplicar filtros nas reservas confirmadas
+void _applyFiltersConfirmed() {
+  print('Applying filters with dates: $_startDateConfirmed to $_endDateConfirmed');
+  setState(() {
+    _filteredConfirmedReservas = _confirmedReservas.where((reserva) {
+      final reservaDate = reserva.date;
+      print('Checking reservation date: $reservaDate');
+      
+      final matchesDestination = reserva.destination
+          .toLowerCase()
+          .contains(_destinationFilterConfirmed.toLowerCase());
+      final matchesMatricula = reserva.veiculo.matricula
+          .toLowerCase()
+          .contains(_matriculaFilterConfirmed.toLowerCase());
+      
+      bool matchesDate = true;
+      if (_startDateConfirmed != null || _endDateConfirmed != null) {
+        DateTime reservaDateTime;
+        if (reserva.date is String) {
+          reservaDateTime = DateTime.parse(reserva.date as String);
+        } else {
+          reservaDateTime = reserva.date;
+        }
 
-    setState(() {
-      _isLoadingConfirmed = true;
-    });
+        if (_startDateConfirmed != null && _endDateConfirmed != null) {
+          matchesDate = reservaDateTime.isAfter(_startDateConfirmed!.subtract(const Duration(days: 1))) && 
+                      reservaDateTime.isBefore(_endDateConfirmed!.add(const Duration(days: 1)));
+        } else if (_startDateConfirmed != null) {
+          matchesDate = reservaDateTime.isAfter(_startDateConfirmed!.subtract(const Duration(days: 1)));
+        } else if (_endDateConfirmed != null) {
+          matchesDate = reservaDateTime.isBefore(_endDateConfirmed!.add(const Duration(days: 1)));
+        }
+      }
 
-    try {
-      List<Reserva> reservas = await _reservaService.getReservas(
-        page: _currentPage,
-        pageSize: _pageSize,
-      );
+      print('Matches: destination=$matchesDestination, matricula=$matchesMatricula, date=$matchesDate');
+      return matchesDestination && matchesMatricula && matchesDate;
+    }).toList();
+  });
+}
 
+// Atualize o método para selecionar intervalo de datas na segunda tab
+Future<void> _selectDateRangeConfirmed(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: _startDateConfirmed != null && _endDateConfirmed != null
+          ? DateTimeRange(start: _startDateConfirmed!, end: _endDateConfirmed!)
+          : null,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.blue,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
       setState(() {
-        _confirmedReservas = reservas
-            .where((reserva) => reserva.state == "Confirmed")
-            .toList();
-        _filteredConfirmedReservas = _confirmedReservas;
-        _isLoadingConfirmed = false;
-      });
-    } catch (e) {
-      print('Error fetching confirmed reservas: $e');
-      setState(() {
-        _isLoadingConfirmed = false;
+        _startDateConfirmed = picked.start;
+        _endDateConfirmed = picked.end;
+        _applyFiltersConfirmed();
       });
     }
   }
+
+
+
+  Future<void> _fetchConfirmedReservation() async {
+  if (_isLoadingConfirmed) return;
+
+  setState(() {
+    _isLoadingConfirmed = true;
+  });
+
+  try {
+    List<Reserva> reservas = await _reservaService.getReservas(
+      page: _currentPage,
+      pageSize: _pageSize,
+    );
+
+    setState(() {
+      _confirmedReservas = reservas
+          .where((reserva) => reserva.state == "Confirmed")
+          .toList();
+      _filteredConfirmedReservas = _confirmedReservas;
+      _applyFiltersConfirmed(); // Aplica os filtros após carregar
+      _isLoadingConfirmed = false;
+    });
+  } catch (e) {
+    print('Error fetching confirmed reservas: $e');
+    setState(() {
+      _isLoadingConfirmed = false;
+    });
+  }
+}
 
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
@@ -1255,11 +1341,8 @@ Future<void> _fetchReservas() async {
                         ),
                         onChanged: (value) {
                           setState(() {
-                            _filteredConfirmedReservas = _confirmedReservas
-                                .where((reserva) => reserva.destination
-                                    .toLowerCase()
-                                    .contains(value.toLowerCase()))
-                                .toList();
+                            _destinationFilterConfirmed = value;
+                            _applyFiltersConfirmed();
                           });
                         },
                       ),
@@ -1272,13 +1355,48 @@ Future<void> _fetchReservas() async {
                         ),
                         onChanged: (value) {
                           setState(() {
-                            _filteredConfirmedReservas = _confirmedReservas
-                                .where((reserva) => reserva.veiculo.matricula
-                                    .toLowerCase()
-                                    .contains(value.toLowerCase()))
-                                .toList();
+                            _matriculaFilterConfirmed = value;
+                            _applyFiltersConfirmed();
                           });
                         },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => _selectDateRangeConfirmed(context),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'Date Range',
+                            border: OutlineInputBorder(),
+                            suffixIcon: _startDateConfirmed != null || _endDateConfirmed != null
+                                ? Icon(Icons.filter_alt, color: Colors.blue)
+                                : Icon(Icons.calendar_today),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _startDateConfirmed == null && _endDateConfirmed == null
+                                    ? 'Select date range'
+                                    : '${_startDateConfirmed != null ? DateFormat('yyyy-MM-dd').format(_startDateConfirmed!) : ''}'
+                                        ' - '
+                                        '${_endDateConfirmed != null ? DateFormat('yyyy-MM-dd').format(_endDateConfirmed!) : ''}',
+                              ),
+                              if (_startDateConfirmed != null || _endDateConfirmed != null)
+                                IconButton(
+                                  icon: Icon(Icons.clear, size: 18),
+                                  onPressed: () {
+                                    setState(() {
+                                      _startDateConfirmed = null;
+                                      _endDateConfirmed = null;
+                                      _applyFiltersConfirmed();
+                                    });
+                                  },
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],

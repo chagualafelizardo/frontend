@@ -22,143 +22,152 @@ class ManageConfirmedReservasPage extends StatefulWidget {
 }
 
 class _ManageConfirmedReservasPageState
-    extends State<ManageConfirmedReservasPage> with SingleTickerProviderStateMixin {
-  final ReservaService _reservaService = ReservaService(dotenv.env['BASE_URL']!);
-  final VeiculoService _veiculoService = VeiculoService(dotenv.env['BASE_URL']!);
-  final VeiculoImgService _veiculoImgService = VeiculoImgService(dotenv.env['BASE_URL']!);
+    extends State<ManageConfirmedReservasPage> {
+  final ReservaService _reservaService =
+      ReservaService(dotenv.env['BASE_URL']!);
 
-  List<Reserva> _confirmedReservas = []; // Reservas confirmadas (inService == 'No')
-  List<Reserva> _inServiceReservas = []; // Reservas em serviço (inService == 'Yes')
-  
-  List<Reserva> _filteredConfirmedReservas = [];
-  List<Reserva> _filteredInServiceReservas = [];
-  
+  final VeiculoService _veiculoService =  
+  VeiculoService(dotenv.env['BASE_URL']!);
+
+  final VeiculoImgService _veiculoImgService = 
+  VeiculoImgService(dotenv.env['BASE_URL']!);
+
+  List<Reserva> _reservas = [];
+  List<Reserva> _filteredReservas = [];
   int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
   bool _isLoading = false;
-  int? _selectedVehicleId;
+  int? _selectedVehicleId; // Armazena qual veículo está expandido
   bool _isLoadingImages = false;
-  late TabController _tabController;
-  List<Reserva> _reservas = [];
 
-  // Filtros para cada tab
-  String _destinationFilterConfirmed = '';
-  String _vehicleFilterConfirmed = '';
-  DateTime? _startDateConfirmed;
-  DateTime? _endDateConfirmed;
-  
-  String _destinationFilterInService = '';
-  String _vehicleFilterInService = '';
-  DateTime? _startDateInService;
-  DateTime? _endDateInService;
-
+  // Filtros
+  String _destinationFilter = '';
+  String _stateFilter = '';
+  String _vehicleFilter = '';
+  String _userFilter = '';
   bool _isGridView = true;
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _selectedVehicleId = null;
     _fetchReservas();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+void _applyFilters() {
+  setState(() {
+    _filteredReservas = _reservas.where((reserva) {
+      // Converter a string da reserva para DateTime
+      final reservaDate = reserva.date;
+      
+      final matchesDestination = reserva.destination
+          .toLowerCase()
+          .contains(_destinationFilter.toLowerCase());
+      
+      bool matchesDate = true;
+      if (_startDate != null && _endDate != null) {
+        matchesDate = reservaDate.isAfter(_startDate!.subtract(const Duration(days: 1))) && 
+                     reservaDate.isBefore(_endDate!.add(const Duration(days: 1)));
+      } else if (_startDate != null) {
+        matchesDate = reservaDate.isAfter(_startDate!.subtract(const Duration(days: 1)));
+      } else if (_endDate != null) {
+        matchesDate = reservaDate.isBefore(_endDate!.add(const Duration(days: 1)));
+      }
 
-  void _applyFiltersConfirmed() {
+      return matchesDestination && matchesDate;
+    }).toList();
+  });
+}
+  // Método para abrir o DatePicker e selecionar a data
+Future<void> _selectDate(BuildContext context) async {
+  final DateTimeRange? picked = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime(2000),
+    lastDate: DateTime(2100),
+    initialDateRange: _startDate != null && _endDate != null
+        ? DateTimeRange(start: _startDate!, end: _endDate!)
+        : null,
+  );
+
+  if (picked != null) {
     setState(() {
-      _filteredConfirmedReservas = _confirmedReservas.where((reserva) {
-        final reservaDate = reserva.date;
-        
-        final matchesDestination = reserva.destination
-            .toLowerCase()
-            .contains(_destinationFilterConfirmed.toLowerCase());
-        final matchesVehicle = reserva.veiculo.matricula
-            .toLowerCase()
-            .contains(_vehicleFilterConfirmed.toLowerCase());
-        
-        bool matchesDate = true;
-        if (_startDateConfirmed != null && _endDateConfirmed != null) {
-          matchesDate = reservaDate.isAfter(_startDateConfirmed!.subtract(const Duration(days: 1))) && 
-                       reservaDate.isBefore(_endDateConfirmed!.add(const Duration(days: 1)));
-        } else if (_startDateConfirmed != null) {
-          matchesDate = reservaDate.isAfter(_startDateConfirmed!.subtract(const Duration(days: 1)));
-        } else if (_endDateConfirmed != null) {
-          matchesDate = reservaDate.isBefore(_endDateConfirmed!.add(const Duration(days: 1)));
-        }
-
-        return matchesDestination && matchesVehicle && matchesDate;
-      }).toList();
-    });
-  }
-
-  void _applyFiltersInService() {
-    setState(() {
-      _filteredInServiceReservas = _inServiceReservas.where((reserva) {
-        final reservaDate = reserva.date;
-        
-        final matchesDestination = reserva.destination
-            .toLowerCase()
-            .contains(_destinationFilterInService.toLowerCase());
-        final matchesVehicle = reserva.veiculo.matricula
-            .toLowerCase()
-            .contains(_vehicleFilterInService.toLowerCase());
-        
-        bool matchesDate = true;
-        if (_startDateInService != null && _endDateInService != null) {
-          matchesDate = reservaDate.isAfter(_startDateInService!.subtract(const Duration(days: 1))) && 
-                       reservaDate.isBefore(_endDateInService!.add(const Duration(days: 1)));
-        } else if (_startDateInService != null) {
-          matchesDate = reservaDate.isAfter(_startDateInService!.subtract(const Duration(days: 1)));
-        } else if (_endDateInService != null) {
-          matchesDate = reservaDate.isBefore(_endDateInService!.add(const Duration(days: 1)));
-        }
-
-        return matchesDestination && matchesVehicle && matchesDate;
-      }).toList();
-    });
-  }
-
-  Future<void> _selectDateRangeConfirmed(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      initialDateRange: _startDateConfirmed != null && _endDateConfirmed != null
-          ? DateTimeRange(start: _startDateConfirmed!, end: _endDateConfirmed!)
-          : null,
-    );
-
-    if (picked != null) {
-      setState(() {
-        _startDateConfirmed = picked.start;
-        _endDateConfirmed = picked.end;
-        _applyFiltersConfirmed();
+        _startDate = picked.start;
+        _endDate = picked.end;
+        _applyFilters(); // Aplica os filtros imediatamente após seleção
       });
     }
   }
 
-  Future<void> _selectDateRangeInService(BuildContext context) async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      initialDateRange: _startDateInService != null && _endDateInService != null
-          ? DateTimeRange(start: _startDateInService!, end: _endDateInService!)
-          : null,
+  Widget _buildDetailItem(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[600]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
+  }
 
-    if (picked != null) {
-      setState(() {
-        _startDateInService = picked.start;
-        _endDateInService = picked.end;
-        _applyFiltersInService();
-      });
+  Future<List<String>> _fetchAdditionalImages(int veiculoId) async {
+    try {
+      final images = await _veiculoImgService.fetchImagesByVehicleId(veiculoId);
+      return images.map((img) => img.imageBase64).toList();
+    } catch (error) {
+      print('Failed to load additional images: $error');
+      return [];
     }
+  }
+
+  void _showFullScreenImage(BuildContext context, String currentImage, List<String> allImages, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(),
+          body: PageView.builder(
+            itemCount: allImages.length,
+            controller: PageController(initialPage: initialIndex),
+            itemBuilder: (context, index) {
+              return InteractiveViewer(
+                child: Center(
+                  child: Image.memory(
+                    base64Decode(allImages[index]),
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchReservas() async {
@@ -178,23 +187,17 @@ class _ManageConfirmedReservasPageState
         if (reservas.isEmpty) {
           _hasMore = false;
         } else {
-          // Separar reservas confirmadas e em serviço
-          _confirmedReservas.addAll(reservas.where((reserva) => 
+          // Filtra apenas reservas confirmadas E com inService == 'No'
+          _reservas.addAll(reservas.where((reserva) => 
             reserva.state == 'Confirmed' && reserva.inService == 'No'));
           
-          _inServiceReservas.addAll(reservas.where((reserva) => 
-            reserva.state == 'Confirmed' && reserva.inService == 'Yes'));
-          
-          // Ordenar por ID decrescente
-          _confirmedReservas.sort((a, b) => b.id.compareTo(a.id));
-          _inServiceReservas.sort((a, b) => b.id.compareTo(a.id));
+          // Ordena por ID decrescente
+          _reservas.sort((a, b) => b.id.compareTo(a.id));
           
           _currentPage++;
         }
-        
-        _applyFiltersConfirmed();
-        _applyFiltersInService();
         _isLoading = false;
+        _applyFilters(); // Aplica os filtros após carregar
       });
     } catch (e) {
       print('Error fetching reservas: $e');
@@ -203,7 +206,6 @@ class _ManageConfirmedReservasPageState
       });
     }
   }
-
 
   String _formatDate(DateTime date) {
     return DateFormat('yyyy-MM-dd').format(date);
@@ -522,14 +524,7 @@ String _addPadding(String base64String) {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Confirmed Reservations'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.check_circle), text: 'Confirmed'),
-            Tab(icon: Icon(Icons.directions_car), text: 'In Service'),
-          ],
-        ),
+        title: const Text('Manage Reservations'),
         actions: [
           IconButton(
             icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
@@ -541,252 +536,105 @@ String _addPadding(String base64String) {
           ),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Primeira Tab - Reservas Confirmadas
-          Column(
+          Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search Destination',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _destinationFilterConfirmed = value;
-                            _applyFiltersConfirmed();
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Vehicle Plate',
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _vehicleFilterConfirmed = value;
-                            _applyFiltersConfirmed();
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _selectDateRangeConfirmed(context),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Date Range',
-                            border: OutlineInputBorder(),
-                            suffixIcon: _startDateConfirmed != null || _endDateConfirmed != null
-                                ? Icon(Icons.filter_alt, color: Colors.blue)
-                                : Icon(Icons.calendar_today),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _startDateConfirmed == null && _endDateConfirmed == null
-                                    ? 'Select date range'
-                                    : '${_startDateConfirmed != null ? _formatDate(_startDateConfirmed!) : ''}'
-                                        ' - '
-                                        '${_endDateConfirmed != null ? _formatDate(_endDateConfirmed!) : ''}',
-                              ),
-                              if (_startDateConfirmed != null || _endDateConfirmed != null)
-                                IconButton(
-                                  icon: Icon(Icons.clear, size: 18),
-                                  onPressed: () {
-                                    setState(() {
-                                      _startDateConfirmed = null;
-                                      _endDateConfirmed = null;
-                                      _applyFiltersConfirmed();
-                                    });
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(labelText: 'Destination'),
+                  onChanged: (value) {
+                    setState(() {
+                      _destinationFilter = value;
+                      _fetchReservas();
+                    });
+                  },
                 ),
               ),
+              const SizedBox(width: 8.0),
               Expanded(
-                child: _isLoading && _confirmedReservas.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredConfirmedReservas.isEmpty
-                        ? const Center(child: Text('No confirmed reservations found'))
-                        : _isGridView
-                            ? GridView.builder(
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  crossAxisSpacing: 8.0,
-                                  mainAxisSpacing: 8.0,
-                                  childAspectRatio: 1.5,
-                                ),
-                                itemCount: _filteredConfirmedReservas.length + (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index >= _filteredConfirmedReservas.length) {
-                                    return _isLoading
-                                        ? const Center(child: CircularProgressIndicator())
-                                        : Container();
-                                  }
-                                  return _buildReservaCard(_filteredConfirmedReservas[index]);
-                                },
-                              )
-                            : ListView.builder(
-                                itemCount: _filteredConfirmedReservas.length + (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index >= _filteredConfirmedReservas.length) {
-                                    return _isLoading
-                                        ? const Center(child: CircularProgressIndicator())
-                                        : Container();
-                                  }
-                                  return _buildReservaCard(_filteredConfirmedReservas[index]);
-                                },
-                              ),
+                child: InkWell(
+                  onTap: () => _selectDate(context),
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Date Range',
+                      border: OutlineInputBorder(),
+                      suffixIcon: _startDate != null || _endDate != null
+                          ? Icon(Icons.filter_alt, color: Colors.blue)
+                          : Icon(Icons.calendar_today),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _startDate == null && _endDate == null
+                              ? 'Select date range'
+                              : '${_startDate != null ? _formatDate(_startDate!) : ''}'
+                                  ' - '
+                                  '${_endDate != null ? _formatDate(_endDate!) : ''}',
+                        ),
+                        if (_startDate != null || _endDate != null)
+                          IconButton(
+                            icon: Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _startDate = null;
+                                _endDate = null;
+                                _applyFilters();
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
-
-          // Segunda Tab - Reservas em Serviço
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Search Destination',
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _destinationFilterInService = value;
-                            _applyFiltersInService();
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          labelText: 'Vehicle Plate',
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _vehicleFilterInService = value;
-                            _applyFiltersInService();
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _selectDateRangeInService(context),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Date Range',
-                            border: OutlineInputBorder(),
-                            suffixIcon: _startDateInService != null || _endDateInService != null
-                                ? Icon(Icons.filter_alt, color: Colors.blue)
-                                : Icon(Icons.calendar_today),
+        ),
+          Expanded(
+            child: _isLoading && _reservas.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredReservas.isEmpty
+                    ? const Center(child: Text('No reservations found for selected filters'))
+                    : _isGridView
+                        ? GridView.builder(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 8.0,
+                              mainAxisSpacing: 8.0,
+                              childAspectRatio: 1.5,
+                            ),
+                            itemCount: _filteredReservas.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index >= _filteredReservas.length) {
+                                return _isLoading
+                                    ? const Center(child: CircularProgressIndicator())
+                                    : Container();
+                              }
+                              return _buildReservaCard(_filteredReservas[index]);
+                            },
+                          )
+                        : ListView.builder(
+                            itemCount: _filteredReservas.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index >= _filteredReservas.length) {
+                                return _isLoading
+                                    ? const Center(child: CircularProgressIndicator())
+                                    : Container();
+                              }
+                              return _buildReservaCard(_filteredReservas[index]);
+                            },
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _startDateInService == null && _endDateInService == null
-                                    ? 'Select date range'
-                                    : '${_startDateInService != null ? _formatDate(_startDateInService!) : ''}'
-                                        ' - '
-                                        '${_endDateInService != null ? _formatDate(_endDateInService!) : ''}',
-                              ),
-                              if (_startDateInService != null || _endDateInService != null)
-                                IconButton(
-                                  icon: Icon(Icons.clear, size: 18),
-                                  onPressed: () {
-                                    setState(() {
-                                      _startDateInService = null;
-                                      _endDateInService = null;
-                                      _applyFiltersInService();
-                                    });
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _isLoading && _inServiceReservas.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredInServiceReservas.isEmpty
-                        ? const Center(child: Text('No in-service reservations found'))
-                        : _isGridView
-                            ? GridView.builder(
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  crossAxisSpacing: 8.0,
-                                  mainAxisSpacing: 8.0,
-                                  childAspectRatio: 1.5,
-                                ),
-                                itemCount: _filteredInServiceReservas.length + (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index >= _filteredInServiceReservas.length) {
-                                    return _isLoading
-                                        ? const Center(child: CircularProgressIndicator())
-                                        : Container();
-                                  }
-                                  return _buildReservaCard(_filteredInServiceReservas[index]);
-                                },
-                              )
-                            : ListView.builder(
-                                itemCount: _filteredInServiceReservas.length + (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index >= _filteredInServiceReservas.length) {
-                                    return _isLoading
-                                        ? const Center(child: CircularProgressIndicator())
-                                        : Container();
-                                  }
-                                  return _buildReservaCard(_filteredInServiceReservas[index]);
-                                },
-                              ),
-              ),
-            ],
-          ),
+          )
         ],
       ),
     );
   }
 
-  Future<List<String>> _fetchAdditionalImages(int veiculoId) async {
-    try {
-      final images = await _veiculoImgService.fetchImagesByVehicleId(veiculoId);
-      return images.map((img) => img.imageBase64).toList();
-    } catch (error) {
-      print('Failed to load additional images: $error');
-      return [];
-    }
-  }
-
-Widget _buildVehicleExpansionTile(Veiculo veiculo) {
+  Widget _buildVehicleExpansionTile(Veiculo veiculo) {
   return ExpansionTile(
     title: const Text(
       'Vehicle Details',

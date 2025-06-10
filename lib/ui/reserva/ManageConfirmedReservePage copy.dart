@@ -877,19 +877,6 @@ String _addPadding(String base64String) {
     }
 
 
-// class VeiculoServices {
-//   Future<Veiculo> getVeiculoByMatricula(String matricula) async {
-//     final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/veiculo/matricula/$matricula'));
-//     if (response.statusCode == 200) {
-//       // Supondo que a resposta seja JSON e que você tenha um método Veiculo.fromJson
-//       return Veiculo.fromJson(jsonDecode(response.body));
-//     } else {
-//       throw Exception('Failed to load vehicle');
-//     }
-//   }
-// }
-
-
 class UserService {
   Future<User> getUserByName(int userId) async {
     final response = await http.get(Uri.parse('${dotenv.env['BASE_URL']}/user/$userId'));

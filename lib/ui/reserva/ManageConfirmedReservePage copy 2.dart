@@ -22,8 +22,7 @@ class ManageConfirmedReservasPage extends StatefulWidget {
 }
 
 class _ManageConfirmedReservasPageState
-    extends State<ManageConfirmedReservasPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+    extends State<ManageConfirmedReservasPage> {
     
   List<Reserva> _reservasInService = []; // Nova lista para reservas em serviço
   int _currentTabIndex = 0; // 0 = Confirmadas, 1 = Em serviço
@@ -58,15 +57,8 @@ class _ManageConfirmedReservasPageState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _selectedVehicleId = null;
     _fetchReservas();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
 void _applyFilters() {
@@ -578,7 +570,6 @@ String _addPadding(String base64String) {
             );
       }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -599,7 +590,6 @@ String _addPadding(String base64String) {
           child: Column(
             children: [
               TabBar(
-                controller: _tabController,
                 indicatorColor: Colors.white,
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white70,
@@ -632,66 +622,100 @@ String _addPadding(String base64String) {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _selectDate(context),
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Date Range',
-                        border: OutlineInputBorder(),
-                        suffixIcon: _startDate != null || _endDate != null
-                            ? Icon(Icons.filter_alt, color: Colors.blue)
-                            : Icon(Icons.calendar_today),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _startDate == null && _endDate == null
-                                ? 'Select date range'
-                                : '${_startDate != null ? _formatDate(_startDate!) : ''}'
-                                    ' - '
-                                    '${_endDate != null ? _formatDate(_endDate!) : ''}',
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    // Tab 1: Reservas Confirmadas
+                    _buildReservasList(_filteredReservas),
+                    
+                    // Tab 2: Reservas em Serviço
+                    _buildReservasList(_reservasInService),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _selectDate(context),
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Date Range',
+                      border: OutlineInputBorder(),
+                      suffixIcon: _startDate != null || _endDate != null
+                          ? Icon(Icons.filter_alt, color: Colors.blue)
+                          : Icon(Icons.calendar_today),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _startDate == null && _endDate == null
+                              ? 'Select date range'
+                              : '${_startDate != null ? _formatDate(_startDate!) : ''}'
+                                  ' - '
+                                  '${_endDate != null ? _formatDate(_endDate!) : ''}',
+                        ),
+                        if (_startDate != null || _endDate != null)
+                          IconButton(
+                            icon: Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              setState(() {
+                                _startDate = null;
+                                _endDate = null;
+                                _applyFilters();
+                              });
+                            },
                           ),
-                          if (_startDate != null || _endDate != null)
-                            IconButton(
-                              icon: Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                setState(() {
-                                  _startDate = null;
-                                  _endDate = null;
-                                  _applyFilters();
-                                });
-                              },
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Tab 1: Reservas Confirmadas
-                _buildReservasList(_filteredReservas),
-                
-                // Tab 2: Reservas em Serviço
-                _buildReservasList(_reservasInService),
-              ],
-            ),
-          ),
+            child: _isLoading && _reservas.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredReservas.isEmpty
+                    ? const Center(child: Text('No reservations found for selected filters'))
+                    : _isGridView
+                        ? GridView.builder(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 8.0,
+                              mainAxisSpacing: 8.0,
+                              childAspectRatio: 1.5,
+                            ),
+                            itemCount: _filteredReservas.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index >= _filteredReservas.length) {
+                                return _isLoading
+                                    ? const Center(child: CircularProgressIndicator())
+                                    : Container();
+                              }
+                              return _buildReservaCard(_filteredReservas[index]);
+                            },
+                          )
+                        : ListView.builder(
+                            itemCount: _filteredReservas.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index >= _filteredReservas.length) {
+                                return _isLoading
+                                    ? const Center(child: CircularProgressIndicator())
+                                    : Container();
+                              }
+                              return _buildReservaCard(_filteredReservas[index]);
+                            },
+                          ),
+          )
         ],
       ),
     );
   }
-
 
   Widget _buildVehicleExpansionTile(Veiculo veiculo) {
   return ExpansionTile(

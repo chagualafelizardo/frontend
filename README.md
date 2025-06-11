@@ -7,4 +7,6 @@
     storeFile=keystore.jks 
 -->
 
+<!-- Na raiz do projecto correr o comando build para web -->
+flutter build web
 <!-- Como fazer o deploy do web para o render.com -->

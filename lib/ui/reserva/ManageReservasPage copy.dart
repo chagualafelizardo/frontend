@@ -793,7 +793,6 @@ Future<void> _selectDateRangeConfirmed(BuildContext context) async {
   }
 
   Future<void> _confirmReserva(int reservaId) async {
-  // Mostrar diálogo de confirmação
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -814,80 +813,36 @@ Future<void> _selectDateRangeConfirmed(BuildContext context) async {
       },
     );
 
-    if (confirm != true) return;
+    if (confirm == true) {
+      try {
+        await _reservaService.confirmReserva(reservaId.toString());
 
-    setState(() {
-      _isConfirmingReserva = true;
-      _currentlyProcessingReservaId = reservaId;
-    });
-
-    try {
-      // Mostrar diálogo de processamento
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text('Confirming reservation #$reservaId...'),
-              ],
-            ),
-          );
-        },
-      );
-
-      await _reservaService.confirmReserva(reservaId.toString());
-
-      // Atualizar a lista de reservas (sem copyWith)
-      setState(() {
-        _reservas = _reservas.map((reserva) {
-          if (reserva.id == reservaId) {
-            reserva.state = 'Confirmed'; // Atualização direta
-          }
-          return reserva;
-        }).toList();
-        _filteredReservas = _reservas;
-      });
-
-      // Fechar o diálogo de processamento
-      if (mounted) Navigator.of(context).pop();
-
-      // Navegar para a tela de pagamento
-      Reserva reserva = _reservas.firstWhere((r) => r.id == reservaId);
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentAndDeliveryLocation(
-            reservaId: reservaId,
-            userId: reserva.userId,
-            veiculoId: reserva.veiculoId,
-          ),
-        ),
-      );
-
-    } catch (e, stackTrace) {
-      // Fechar o diálogo em caso de erro
-      if (mounted) Navigator.of(context).pop();
-      
-      print('Exception occurred while confirming reservation: ${e.toString()}');
-      print('StackTrace: $stackTrace');
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error confirming reservation: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
         setState(() {
-          _isConfirmingReserva = false;
-          _currentlyProcessingReservaId = null;
+          _reservas = _reservas.map((reserva) {
+            if (reserva.id == reservaId) {
+              reserva.state = 'Confirmed';
+            }
+            return reserva;
+          }).toList();
+          _filteredReservas = _reservas;
         });
+
+        Reserva reserva = _reservas.firstWhere((r) => r.id == reservaId);
+        
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentAndDeliveryLocation(
+              reservaId: reservaId,
+              userId: reserva.userId,
+              veiculoId: reserva.veiculoId,
+            ),
+          ),
+        );
+
+      } catch (e, stackTrace) {
+        print('Exception occurred while confirming reservation: ${e.toString()}');
+        print('StackTrace: $stackTrace');
       }
     }
   }
@@ -1187,21 +1142,10 @@ Future<void> _selectDateRangeConfirmed(BuildContext context) async {
                                                 shape: const CircleBorder(),
                                                 child: InkWell(
                                                   borderRadius: BorderRadius.circular(50),
-                                                  onTap: _isConfirmingReserva && _currentlyProcessingReservaId == reserva.id 
-                                                      ? null 
-                                                      : () => _confirmReserva(reserva.id),
-                                                  child: Padding(
-                                                    padding: const EdgeInsets.all(8.0),
-                                                    child: _isConfirmingReserva && _currentlyProcessingReservaId == reserva.id
-                                                        ? const SizedBox(
-                                                            width: 16,
-                                                            height: 16,
-                                                            child: CircularProgressIndicator(
-                                                              color: Colors.white,
-                                                              strokeWidth: 2,
-                                                            ),
-                                                          )
-                                                        : const Icon(Icons.check, color: Colors.white),
+                                                  onTap: () => _confirmReserva(reserva.id),
+                                                  child: const Padding(
+                                                    padding: EdgeInsets.all(8.0),
+                                                    child: Icon(Icons.check, color: Colors.white),
                                                   ),
                                                 ),
                                               ),

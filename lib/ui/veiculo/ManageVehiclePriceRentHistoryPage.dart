@@ -1,12 +1,9 @@
 import 'dart:async';
 
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:app/models/VehicleHistoryRent.dart';
 import 'package:app/services/VehicleHistoryRentService.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
-import '../../models/Veiculo.dart';
 
 class ManageVehicleHistoryPage extends StatefulWidget {
   final VehicleHistoryRentService service;

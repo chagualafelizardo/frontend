@@ -39,10 +39,16 @@ class PostoService {
     }
   }
 
-  Future<void> deletePosto(int id) async {
-    final response = await http.delete(Uri.parse('$baseUrl/posto/$id'));
-    if (response.statusCode != 204) {
-      throw Exception('Failed to delete posto');
+
+   Future<void> deletePosto(int id) async {
+    final url = Uri.parse('$baseUrl/posto/$id');
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete Posto: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting Posto: $e');
     }
   }
 }

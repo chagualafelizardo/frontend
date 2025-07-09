@@ -82,68 +82,72 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
     });
   }
 
-  void _saveVeiculo() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      final veiculo = VeiculoAdd(
-        id: 0,
-        matricula: _matriculaController.text,
-        marca: _marcaController.text,
-        modelo: _modeloController.text,
-        ano: int.parse(_anoController.text),
-        cor: _corController.text,
-        numChassi: _numChassiController.text,
-        numLugares: int.parse(_numLugaresController.text),
-        numMotor: _numMotorController.text,
-        numPortas: int.parse(_numPortasController.text),
-        tipoCombustivel: _selectedCombustivel,
-        state: _selectedState,
-        imagemBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
-        rentalIncludesDriver: _rentalIncludesDriver,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(), 
-        isAvailable: _isAvailable, 
-        smsLockCommand: _smsLockCommandController.text, 
-        smsUnLockCommand: _smsUnLockCommandController.text, 
-      );
+  Future<bool> _saveVeiculo() async {
+  // Validação do formulário
+  if (!(_formKey.currentState?.validate() ?? false)) {
+    return false;
+  }
 
-      try {
-        // Salvar o veículo
-        await widget.veiculoServiceAdd.createVeiculo(veiculo);
-        final veiculoSalvo = await widget.veiculoServiceAdd.getVeiculoByMatricula(_matriculaController.text);
+  // Preparar dados do veículo
+  final veiculo = VeiculoAdd(
+      id: 0,
+      matricula: _matriculaController.text,
+      marca: _marcaController.text,
+      modelo: _modeloController.text,
+      ano: int.parse(_anoController.text),
+      cor: _corController.text,
+      numChassi: _numChassiController.text,
+      numLugares: int.parse(_numLugaresController.text),
+      numMotor: _numMotorController.text,
+      numPortas: int.parse(_numPortasController.text),
+      tipoCombustivel: _selectedCombustivel,
+      state: _selectedState,
+      imagemBase64: _imageBytes != null ? base64Encode(_imageBytes!) : '',
+      rentalIncludesDriver: _rentalIncludesDriver,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      isAvailable: _isAvailable,
+      smsLockCommand: _smsLockCommandController.text,
+      smsUnLockCommand: _smsUnLockCommandController.text,
+    );
 
-        if (veiculoSalvo == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to retrieve the saved vehicle')),
-          );
-          return;
-        }
-
-        // Salvar as imagens adicionais
-        if (_additionalImages.isNotEmpty) {
-          await _uploadAdditionalImages(veiculoSalvo.id);
-        }
-        // Salvar os detalhes do veículo
-        if (_veiculoDetails.isNotEmpty) {
-          for (var detail in _veiculoDetails) {
-            await widget.veiculoServiceAdd.addVeiculoDetail(
-              VeiculoDetails(
-                description: detail.description,
-                startDate: detail.startDate,
-                endDate: detail.endDate,
-                obs: detail.obs,
-                veiculoId: veiculoSalvo.id,
-              ),
-            );
-          }
-        }
-
-        widget.onVeiculoAdded();
-        Navigator.of(context).pop();
-      } catch (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add vehicle: $error')),
-        );
+    try {
+      // 1. Salvar o veículo principal
+      await widget.veiculoServiceAdd.createVeiculo(veiculo);
+      
+      // 2. Obter o veículo salvo para pegar o ID
+      final veiculoSalvo = await widget.veiculoServiceAdd.getVeiculoByMatricula(_matriculaController.text);
+      if (veiculoSalvo == null) {
+        throw Exception('Failed to retrieve saved vehicle');
       }
+
+      // 3. Processar imagens adicionais em paralelo (se houver)
+      final uploadFutures = _additionalImages.map((image) => 
+        VeiculoImgService(dotenv.env['BASE_URL']!)
+          .addImageToVehicle(veiculoSalvo.id, image)
+          .catchError((e) => debugPrint('Error uploading image: $e'))
+      ).toList();
+
+      // 4. Processar detalhes do veículo em paralelo (se houver)
+      final detailFutures = _veiculoDetails.map((detail) =>
+        widget.veiculoServiceAdd.addVeiculoDetail(
+          VeiculoDetails(
+            description: detail.description,
+            startDate: detail.startDate,
+            endDate: detail.endDate,
+            obs: detail.obs,
+            veiculoId: veiculoSalvo.id,
+          ),
+        ).catchError((e) => debugPrint('Error saving detail: $e'))
+      ).toList();
+
+      // Aguardar todas as operações assíncronas
+      await Future.wait([...uploadFutures, ...detailFutures]);
+
+      return true;
+    } catch (e) {
+      debugPrint('Error saving vehicle: $e');
+      rethrow; // Re-lança o erro para ser tratado no chamador
     }
   }
 
@@ -637,7 +641,79 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
           child: const Text('Cancel', style: TextStyle(fontSize: 16)),
         ),
         ElevatedButton(
-          onPressed: _saveVeiculo,
+          onPressed: () async {
+            // Verificar se o formulário é válido
+            if (!_formKey.currentState!.validate()) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please fill all required fields')),
+              );
+              return;
+            }
+
+            // Mostrar diálogo de confirmação
+            final shouldSave = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Confirm Save'),
+                content: const Text('Are you sure you want to save this vehicle?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ) ?? false;
+
+            if (!shouldSave) return;
+
+            // Mostrar indicador de carregamento
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(child: CircularProgressIndicator()),
+            );
+
+            try {
+              // Chamar o método de salvamento
+              await _saveVeiculo();
+              
+              // Fechar o indicador de carregamento
+              if (mounted) Navigator.of(context).pop();
+              
+              // Mostrar mensagem de sucesso
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Vehicle saved successfully!'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              
+              // Atualizar a lista e fechar o diálogo
+              widget.onVeiculoAdded();
+              if (mounted) Navigator.of(context).pop();
+              
+            } catch (e) {
+              // Fechar o indicador de carregamento em caso de erro
+              if (mounted) Navigator.of(context).pop();
+              
+              // Mostrar mensagem de erro
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error saving vehicle: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+              
+              debugPrint('Error saving vehicle: $e');
+            }
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
             foregroundColor: Colors.white,
@@ -645,7 +721,7 @@ class _AddNewVeiculoFormState extends State<AddNewVeiculoForm> with SingleTicker
             elevation: 5,
           ),
           child: const Text('Save', style: TextStyle(fontSize: 16)),
-        ),
+        )
       ],
     );
   }

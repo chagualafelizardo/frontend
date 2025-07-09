@@ -1,11 +1,21 @@
+import 'dart:core';
+import 'package:flutter/material.dart';
 import 'package:app/models/VehicleSupply.dart';
 import 'package:app/services/VehicleSupplyService.dart';
-import 'package:flutter/material.dart';
 
 class EditVehicleSupplyForm extends StatefulWidget {
-  final String veiculoId;  // ID do veículo para edição
+  final VehicleSupplyService vehicleSupplyService;
+  final VehicleSupply supply;
+  final VoidCallback onSupplyUpdated;
+  final String veiculoId;
 
-  const EditVehicleSupplyForm({super.key, required this.veiculoId, required VehicleSupplyService vehicleSupplyService, required VehicleSupply supply, required Future<void> Function() onSupplyUpdated});
+  const EditVehicleSupplyForm({
+    Key? key,
+    required this.vehicleSupplyService,
+    required this.supply,
+    required this.onSupplyUpdated,
+    required this.veiculoId,
+  }) : super(key: key);
 
   @override
   _EditVehicleSupplyFormState createState() => _EditVehicleSupplyFormState();
@@ -13,143 +23,222 @@ class EditVehicleSupplyForm extends StatefulWidget {
 
 class _EditVehicleSupplyFormState extends State<EditVehicleSupplyForm> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _supplyAmountController = TextEditingController();
-  final TextEditingController _supplyDateController = TextEditingController();
-  final TextEditingController _fuelTypeController = TextEditingController();
-  String _selectedFuelType = 'Gasolina'; // Valor inicial
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _quantityController;
+  late TextEditingController _dateController;
+  bool _isLoading = false;
 
-  // Simulação de opções de combustível
-  List<String> fuelTypes = ['Gasolina', 'Diesel', 'Gásóleo'];
 
   @override
   void initState() {
     super.initState();
-    // Você pode carregar os dados atuais do veículo aqui, se necessário
-    // Exemplo: Carregar informações do abastecimento e popular os campos
+    _nameController = TextEditingController(text: widget.supply.name);
+    _descriptionController = TextEditingController(text: widget.supply.description);
+    _quantityController = TextEditingController(text: widget.supply.stock.toString());
+    _dateController = TextEditingController();
   }
 
-  @override
-  void dispose() {
-    _supplyAmountController.dispose();
-    _supplyDateController.dispose();
-    _fuelTypeController.dispose();
-    super.dispose();
-  }
-
-  void _submitForm() {
+  Future<void> _updateSupply() async {
+    print('[DEBUG] Iniciando processo de atualização do supply...');
+    
     if (_formKey.currentState?.validate() ?? false) {
-      // Processar os dados do formulário
-      // Aqui você pode fazer a requisição para atualizar as informações de abastecimento
-      print("Formulário enviado com sucesso!");
-      // Exemplo de como você pode capturar os valores:
-      print('ID Veículo: ${widget.veiculoId}');
-      print('Quantidade: ${_supplyAmountController.text}');
-      print('Data de Abastecimento: ${_supplyDateController.text}');
-      print('Tipo de Combustível: $_selectedFuelType');
+      print('[DEBUG] Formulário validado com sucesso');
+      setState(() => _isLoading = true);
+
+      // Garantir que os campos obrigatórios não sejam nulos
+      final name = _nameController.text.trim();
+      if (name.isEmpty) {
+        print('[ERROR] Nome do supply não pode ser vazio');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('O nome do supply é obrigatório')),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final stockValue = int.tryParse(_quantityController.text.trim()) ?? 0;
+      if (stockValue <= 0) {
+        print('[ERROR] Estoque inválido');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('O estoque deve ser um número positivo')),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final updatedSupply = VehicleSupply(
+        id: widget.supply.id,
+        name: name,
+        description: _descriptionController.text.trim(),
+        stock: stockValue,
+        createdAt: widget.supply.createdAt,
+        updatedAt: DateTime.now(),
+        selected: widget.supply.selected,
+      );
+
+      print('[DEBUG] Dados do supply a ser atualizado:');
+      print(' - ID: ${updatedSupply.id}');
+      print(' - Nome: ${updatedSupply.name}');
+      print(' - Descrição: ${updatedSupply.description ?? "null"}');
+      print(' - Estoque: ${updatedSupply.stock}');
+      print(' - Criado em: ${updatedSupply.createdAt ?? "null"}');
+      print(' - Atualizado em: ${updatedSupply.updatedAt}');
+      print(' - Selecionado: ${updatedSupply.selected}');
+
+      try {
+        print('[DEBUG] Chamando serviço para atualizar supply...');
+        final response = await widget.vehicleSupplyService.updateVehicleSupply(updatedSupply);
+        print('[DEBUG] Resposta do servidor: $response');
+        
+        if (!mounted) {
+          print('[WARNING] Widget não está montado, abortando operação');
+          return;
+        }
+        
+        print('[DEBUG] Supply atualizado com sucesso no servidor');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Supply updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        print('[DEBUG] Chamando callback para atualizar lista');
+        widget.onSupplyUpdated();
+        
+        print('[DEBUG] Fechando diálogo de edição');
+        Navigator.of(context).pop();
+        
+      } catch (e) {
+        print('[ERROR] Erro ao atualizar supply: $e');
+        if (!mounted) {
+          print('[WARNING] Widget não está montado, não é possível mostrar erro');
+          return;
+        }
+        
+        String errorMessage = 'Erro ao atualizar supply';
+        if (e.toString().contains('Null')) {
+          errorMessage = 'Dados inválidos: algum campo obrigatório está vazio';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          print('[DEBUG] Finalizando estado de loading');
+          setState(() => _isLoading = false);
+        } else {
+          print('[WARNING] Widget não está montado, não é possível atualizar estado');
+        }
+      }
+    } else {
+      print('[DEBUG] Validação do formulário falhou');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Editar Abastecimento do Veículo"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quantidade de Combustível (litros)',
-                  style: TextStyle(fontSize: 16),
-                ),
-                TextFormField(
-                  controller: _supplyAmountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Digite a quantidade',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Este campo não pode ser vazio';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Data do Abastecimento',
-                  style: TextStyle(fontSize: 16),
-                ),
-                TextFormField(
-                  controller: _supplyDateController,
-                  decoration: const InputDecoration(
-                    labelText: 'Selecione a data',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Este campo não pode ser vazio';
-                    }
-                    return null;
-                  },
-                  onTap: () async {
-                    // Mostrar um seletor de data
-                    FocusScope.of(context).requestFocus(FocusNode());
-                    DateTime? selectedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2101),
-                    );
-                    _supplyDateController.text =
-                        "${selectedDate?.toLocal()}".split(' ')[0]; // Formatando a data
-                                    },
-                ),
-                const SizedBox(height: 16),
-
-                const Text(
-                  'Tipo de Combustível',
-                  style: TextStyle(fontSize: 16),
-                ),
-                DropdownButtonFormField<String>(
-                  value: _selectedFuelType,
-                  items: fuelTypes.map((fuelType) {
-                    return DropdownMenuItem<String>(
-                      value: fuelType,
-                      child: Text(fuelType),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    setState(() {
-                      _selectedFuelType = newValue!;
-                    });
-                  },
-                  decoration: const InputDecoration(
-                    labelText: 'Selecione o tipo',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                ElevatedButton(
-                  onPressed: _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: Text('Salvar Alterações'),
-                ),
-              ],
+    return SingleChildScrollView(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Supply Name',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-          ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Enter supply name',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter the supply name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            const Text(
+              'Description',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Enter description',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a description';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            const Text(
+              'Quantity',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _quantityController,
+              decoration: const InputDecoration(
+                labelText: 'Enter quantity',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter the quantity';
+                }
+                if (int.tryParse(value.trim()) == null) {
+                  return 'Please enter a valid number';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _updateSupply,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+                backgroundColor: Theme.of(context).primaryColor,
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text(
+                      'Update Supply',
+                      style: TextStyle(fontSize: 16),
+                    ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _quantityController.dispose();
+    _dateController.dispose();
+    super.dispose();
   }
 }

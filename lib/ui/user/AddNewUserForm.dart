@@ -136,57 +136,127 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
     }
   }
 
+  // Método _addUser atualizado
   Future<void> _addUser() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        String? imageBase64;
-        if (_imageBytes != null) {
-          imageBase64 = base64Encode(_imageBytes!);
+    // Validar formulário
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Validar senha se for novo usuário
+    if (widget.user == null && _passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passwords do not match!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Mostrar diálogo de confirmação
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.user == null ? 'Add New User' : 'Update User'),
+        content: Text(widget.user == null 
+            ? 'Are you sure you want to add this new user?'
+            : 'Are you sure you want to update this user?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Mostrar indicador de carregamento
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      String? imageBase64;
+      if (_imageBytes != null) {
+        imageBase64 = base64Encode(_imageBytes!);
+      }
+
+      User newUser = User(
+        id: widget.user?.id ?? 0,
+        username: _usernameController.text,
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+        email: _emailController.text,
+        address: _addressController.text,
+        neighborhood: _neighborhoodController.text,
+        phone1: _phone1Controller.text,
+        phone2: _phone2Controller.text,
+        password: _passwordController.text,
+        img: imageBase64 ?? '',
+        state: _state,
+        gender: _gender,
+        birthdate: _selectedBirthdate?.toIso8601String() ?? '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      if (widget.user == null) {
+        User createdUser = await widget.userService.createUser(newUser);
+        
+        // Atribuir roles selecionados
+        UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
+        List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
+        
+        for (var role in selectedRoles) {
+          await userRoleService.assignRoleToUser(createdUser.id, role.id);
         }
 
-        User newUser = User(
-          id: widget.user?.id ?? 0,
-          username: _usernameController.text,
-          firstName: _firstNameController.text,
-          lastName: _lastNameController.text,
-          email: _emailController.text,
-          address: _addressController.text,
-          neighborhood: _neighborhoodController.text,
-          phone1: _phone1Controller.text,
-          phone2: _phone2Controller.text,
-          password: _passwordController.text,
-          img: imageBase64 ?? '',
-          state: _state,
-          gender: _gender,
-          birthdate: _selectedBirthdate?.toIso8601String() ?? '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        if (widget.user == null) {
-          User createdUser = await widget.userService.createUser(newUser);
-          UserRoleService userRoleService = UserRoleService(dotenv.env['BASE_URL']!);
-          List<Role> selectedRoles = roles.where((r) => r.selected == true).toList();
-
-          for (var role in selectedRoles) {
-            await userRoleService.assignRoleToUser(createdUser.id, role.id);
-          }
-
+        // Feedback de sucesso
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('User "${newUser.username}" added successfully!')),
+            SnackBar(
+              content: Text('User "${newUser.username}" added successfully!'),
+              backgroundColor: Colors.green,
+            ),
           );
-        } else {
-          // await widget.userService.updateUser(newUser);
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(content: Text('User "${newUser.username}" updated successfully!')),
-          // );
         }
+      } else {
+        // await widget.userService.updateUser(newUser);
+        // if (mounted) {
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     SnackBar(
+        //       content: Text('User "${newUser.username}" updated successfully!'),
+        //       backgroundColor: Colors.green,
+        //     ),
+        //   );
+        // }
+      }
 
+      // Fechar diálogos e notificar callback
+      if (mounted) {
+        Navigator.pop(context); // Fechar loading
         widget.onUserAdded();
-        Navigator.of(context).pop();
-      } catch (e) {
+        Navigator.pop(context); // Fechar o diálogo do formulário
+      }
+
+    } catch (e) {
+      // Tratamento de erro
+      if (mounted) {
+        Navigator.pop(context); // Fechar loading
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to add/edit user. Please try again.')),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -228,8 +298,17 @@ class _AddNewUserFormState extends State<AddNewUserForm> {
             backgroundColor: Colors.blue,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-          child: Text(widget.user == null ? 'Add User' : 'Update User'),
+          child: Text(
+            widget.user == null ? 'Add User' : 'Update User',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ],
     );

@@ -1,7 +1,5 @@
-import 'package:app/services/VehicleHistoryRentService.dart';
 import 'package:app/ui/veiculo/AddNewVeiculoForm.dart' as add_form;
 import 'package:app/ui/veiculo/EditVeiculoForm.dart' as edit_form;
-import 'package:app/ui/veiculo/ManageVehiclePriceRentHistoryPage.dart';
 import 'package:flutter/material.dart';
 import 'package:app/services/VeiculoService.dart';
 import 'package:app/services/VeiculoAddService.dart';
@@ -31,7 +29,7 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
   final int _itemsPerPage = 10;
   String _searchQuery = ''; // Variável para armazenar a consulta de pesquisa
   bool _isGridView = true;
-
+  bool _isLoading = false;
   
   @override
   void initState() {
@@ -40,44 +38,77 @@ class _ManageVeiculosPageState extends State<ManageVeiculosPage> {
   }
 
   Future<void> _fetchVeiculos() async {
-  try {
-    List<Veiculo> veiculos = await veiculoService.fetchVeiculos(_currentPage, _itemsPerPage);
-    print('Veiculos fetched successfully: $veiculos');
-    setState(() {
-      _veiculos = veiculos;
-      // Sempre que os veículos são atualizados, atualizamos também a lista filtrada
-      _filteredVeiculos = List.from(veiculos); // Garante que a lista filtrada comece com todos os veículos
-    });
-  } catch (e) {
-    print('Error fetching vehicles: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to fetch vehicles: $e')),
-    );
+    setState(() => _isLoading = true); // Ativa o loading
+
+    try {
+      List<Veiculo> veiculos = await veiculoService.fetchVeiculos(_currentPage, _itemsPerPage);
+      print('Veiculos fetched successfully: $veiculos');
+      setState(() {
+        _veiculos = veiculos;
+        _filteredVeiculos = List.from(veiculos);
+        _isLoading = false; // Desativa o loading
+      });
+    } catch (e) {
+      setState(() => _isLoading = false); // Desativa o loading em caso de erro
+      print('Error fetching vehicles: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch vehicles: $e')),
+      );
+    }
   }
-}
+
+// Future<void> _deleteVeiculo(int veiculoId) async {
+//   try {
+//     // Show loading indicator
+//     showDialog(
+//       context: context,
+//       barrierDismissible: false,
+//       builder: (BuildContext context) {
+//         return const Center(child: CircularProgressIndicator());
+//       },
+//     );
+
+//     // Call service to delete vehicle
+//     bool deleted = await veiculoService.deleteVeiculo(veiculoId);
+
+//     // Close loading dialog
+//     Navigator.of(context).pop();
+
+//     if (deleted) {
+//       // Refresh vehicle list after deletion
+//       await _fetchVeiculos();
+      
+//       // Show success message
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(
+//           content: Text('Vehicle deleted successfully!'),
+//           backgroundColor: Colors.green,
+//         ),
+//       );
+//     }
+//   } catch (e) {
+//     // Close loading dialog on error
+//     Navigator.of(context).pop();
+    
+//     // Show error message
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: Text('Error deleting vehicle: ${e.toString()}'),
+//         backgroundColor: Colors.red,
+//       ),
+//     );
+//     print('Error deleting vehicle: $e');
+//   }
+// }
 
 Future<void> _deleteVeiculo(int veiculoId) async {
+  setState(() => _isLoading = true); // Ativa o loading
+
   try {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator());
-      },
-    );
-
-    // Call service to delete vehicle
     bool deleted = await veiculoService.deleteVeiculo(veiculoId);
-
-    // Close loading dialog
-    Navigator.of(context).pop();
-
+    
     if (deleted) {
-      // Refresh vehicle list after deletion
       await _fetchVeiculos();
-      
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vehicle deleted successfully!'),
@@ -86,17 +117,14 @@ Future<void> _deleteVeiculo(int veiculoId) async {
       );
     }
   } catch (e) {
-    // Close loading dialog on error
-    Navigator.of(context).pop();
-    
-    // Show error message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Error deleting vehicle: ${e.toString()}'),
         backgroundColor: Colors.red,
       ),
     );
-    print('Error deleting vehicle: $e');
+  } finally {
+    setState(() => _isLoading = false); // Desativa o loading
   }
 }
 
@@ -144,13 +172,27 @@ void _confirmDeleteVeiculo(Veiculo veiculo) {
     });
   }
 
-    void _openAddVeiculoDialog() {
+  void _openAddVeiculoDialog() {
     showDialog(
       context: context,
       builder: (context) {
         return add_form.AddNewVeiculoForm(
           veiculoServiceAdd: veiculoServiceAdd,
-          onVeiculoAdded: _fetchVeiculos,
+          onVeiculoAdded: () {
+            // Fechar o diálogo
+            Navigator.of(context).pop();
+            
+            // Mostrar mensagem de sucesso
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Veículo adicionado com sucesso!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            
+            // Atualizar a lista de veículos
+            _fetchVeiculos();
+          },
         );
       },
     );
@@ -286,26 +328,25 @@ Widget build(BuildContext context) {
         ),
       ],
     ),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Campo de pesquisa
-          TextField(
-            onChanged: _filterVehicles,
-            decoration: const InputDecoration(
-              labelText: 'Search by Vehicle Info',
-              hintText: 'Enter vehicle info',
-              prefixIcon: Icon(Icons.search),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Exibição de veículos no formato ListView ou GridView
-          Expanded(
-            child: _isGridView
-                ? GridView.builder(
+    body: Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                onChanged: _filterVehicles,
+                decoration: const InputDecoration(
+                  labelText: 'Search by Vehicle Info',
+                  hintText: 'Enter vehicle info',
+                  prefixIcon: Icon(Icons.search),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _isGridView
+                    ? GridView.builder(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 5, // Ajuste para 3 colunas
                       crossAxisSpacing: 8,
@@ -516,6 +557,15 @@ Widget build(BuildContext context) {
           ),
         ],
       ),
+    ),
+    if (_isLoading)
+          const Center(
+            child: CircularProgressIndicator(
+              color: Colors.blue,
+              strokeWidth: 4,
+            ),
+          ),
+      ],
     ),
     floatingActionButton: FloatingActionButton(
         onPressed: _openAddVeiculoDialog,

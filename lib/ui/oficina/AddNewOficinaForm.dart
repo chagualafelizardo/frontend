@@ -19,90 +19,112 @@ class _AddNewOficinaFormState extends State<AddNewOficinaForm> {
   String _endereco = '';
   int _telefone = 0;
   String _obs = '';
+  bool _isSubmitting = false;
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() => _isSubmitting = true);
+    
+    try {
+      _formKey.currentState!.save();
+      Oficina newOficina = Oficina(
+        id: 0,
+        nomeOficina: _nomeOficina,
+        endereco: _endereco,
+        telefone: _telefone,
+        obs: _obs,
+      );
+      
+      await widget.oficinaService.createOficina(newOficina);
+      
+      if (!mounted) return;
+      widget.onOficinaAdded();
+      Navigator.of(context).pop();
+      
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to add workshop: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Add New Workshop'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            TextFormField(
-              decoration: const InputDecoration(labelText: 'Name'),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the name';
-                }
-                return null;
-              },
-              onSaved: (value) {
-                _nomeOficina = value!;
-              },
+    return Stack(
+      children: [
+        AlertDialog(
+          title: const Text('Add New Workshop'),
+          content: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the name';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => _nomeOficina = value!,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Address'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the address';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => _endereco = value!,
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Phone'),
+                    keyboardType: TextInputType.phone,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter the phone number';
+                      }
+                      if (int.tryParse(value) == null) {
+                        return 'Please enter a valid number';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) => _telefone = int.parse(value!),
+                  ),
+                  TextFormField(
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                    maxLines: 3,
+                    onSaved: (value) => _obs = value ?? '',
+                  ),
+                ],
+              ),
             ),
-            TextFormField(
-              decoration: const InputDecoration(labelText: 'Address'),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the address';
-                }
-                return null;
-              },
-              onSaved: (value) {
-                _endereco = value!;
-              },
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
             ),
-            TextFormField(
-              decoration: const InputDecoration(labelText: 'Phone'),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter the phone number';
-                }
-                if (int.tryParse(value) == null) {
-                  return 'Please enter a valid number';
-                }
-                return null;
-              },
-              onSaved: (value) {
-                _telefone = int.parse(value!);
-              },
-            ),
-            TextFormField(
-              decoration: const InputDecoration(labelText: 'Notes'),
-              onSaved: (value) {
-                _obs = value ?? '';
-              },
+            TextButton(
+              onPressed: _isSubmitting ? null : _submitForm,
+              child: const Text('Add'),
             ),
           ],
         ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              _formKey.currentState!.save();
-              Oficina newOficina = Oficina(
-                id: 0, // Placeholder, should be replaced with actual ID after creation
-                nomeOficina: _nomeOficina,
-                endereco: _endereco,
-                telefone: _telefone,
-                obs: _obs,
-              );
-              widget.oficinaService.createOficina(newOficina).then((_) {
-                widget.onOficinaAdded();
-                Navigator.of(context).pop();
-              });
-            }
-          },
-          child: const Text('Add'),
-        ),
+        if (_isSubmitting)
+          const Center(child: CircularProgressIndicator()),
       ],
     );
   }

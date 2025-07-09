@@ -161,20 +161,39 @@ class ReservaService {
   }
 
   // Atualizar uma reserva pelo ID
-  Future<Reserva> updateReserva(int id, Reserva reserva) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/reserva/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(reserva.toJson()),
-    );
+Future<void> updateReserva({
+  required int id,
+  required DateTime date,
+  required String destination,
+  required int numberOfDays,
+  required int userID,
+  required String inService,
+  required String isPaid,
+  required int clientID,
+  required int veiculoID,
+  required String state,
+}) async {
+  final url = Uri.parse('$baseUrl/reserva/$id');
+  final response = await http.put(
+    url,
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'date': date.toIso8601String(),
+      'destination': destination,
+      'number_of_days': numberOfDays,
+      'inService': inService,
+      'isPaid': isPaid,
+      'userID': userID,
+      'clientID': clientID,
+      'veiculoID': veiculoID,
+      'state': state,
+    }),
+  );
 
-    if (response.statusCode == 200) {
-      return Reserva.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to update reserva');
-    }
+  if (response.statusCode != 200) {
+    throw Exception('Failed to update reserva');
   }
-
+}
   // Deletar uma reserva pelo ID
   Future<void> deleteReserva(int id) async {
     final response = await http.delete(Uri.parse('$baseUrl/reserva/$id'));

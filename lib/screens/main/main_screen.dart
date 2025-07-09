@@ -72,7 +72,7 @@ class _MainScreenState extends State<MainScreen> {
         return ManageUsersEmployeeFinancialDetailsPage();
       case '/finestype':
         return ManageTipoMultaPage();
-      case '/finesrecorded':
+      case '/finesregistered':
         return ManageMultaPage();
       case '/paymentCriteria':
         return ManagePaymentCriteriaPage();

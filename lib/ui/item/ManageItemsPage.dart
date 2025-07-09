@@ -4,7 +4,7 @@ import 'package:app/models/Item.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'AddNewItemForm.dart';
 import 'EditItemForm.dart';
-import 'ViewItemPage.dart'; // Certifique-se de importar o ViewItemPage
+import 'ViewItemPage.dart';
 
 class ManageItemsPage extends StatefulWidget {
   const ManageItemsPage({super.key});
@@ -18,24 +18,57 @@ class _ManageItemsPageState extends State<ManageItemsPage> {
   List<Item> _items = [];
   int _currentPage = 1;
   final int _itemsPerPage = 10;
+  bool _isLoading = false;
+  bool _hasError = false;
+  String _errorMessage = '';
+  bool _isDeleting = false;
+  int? _deletingItemId;
 
   @override
   void initState() {
     super.initState();
-    _fetchItems();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    try {
+      await _fetchItems();
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = e.toString();
+      });
+    }
   }
 
   Future<void> _fetchItems() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+
     try {
-      List<Item> items =
-          await itemService.fetchItems(_currentPage, _itemsPerPage);
+      List<Item> items = await itemService.fetchItems(_currentPage, _itemsPerPage);
+      if (!mounted) return;
+      
       setState(() {
         _items = items;
+        _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching items: $e');
+      if (!mounted) return;
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Failed to fetch items: ${e.toString()}';
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to fetch items.')),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -102,10 +135,113 @@ class _ManageItemsPageState extends State<ManageItemsPage> {
     }
   }
 
-  void _viewItemDetails(Item item) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ViewItemPage(item: item),
+void _viewItemDetails(Item item) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 400,
+              minWidth: 300,
+            ),
+            child: ViewItemPage(item: item),
+          ),
+        );
+      },
+    );
+  }
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 20),
+          Text('Loading items...', style: TextStyle(fontSize: 16)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 50),
+          const SizedBox(height: 20),
+          Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: _fetchItems,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataTable() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 16.0,
+        columns: const [
+          DataColumn(label: Text('ID')),
+          DataColumn(label: Text('Item Name')),
+          DataColumn(label: Text('Notes')),
+          DataColumn(label: Text('Actions')),
+        ],
+        rows: _items.map((item) {
+          return DataRow(
+            color: WidgetStateProperty.resolveWith<Color?>(
+              (Set<WidgetState> states) {
+                return _items.indexOf(item) % 2 == 0
+                    ? const Color.fromARGB(255, 61, 61, 61)
+                    : const Color.fromARGB(255, 8, 8, 8);
+              },
+            ),
+            cells: [
+              DataCell(Text(item.id.toString())),
+              DataCell(Text(item.item ?? 'No Name')),
+              DataCell(Text(item.obs ?? '')),
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.visibility),
+                      onPressed: () => _viewItemDetails(item),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _openEditItemDialog(item),
+                    ),
+                    if (_isDeleting && _deletingItemId == item.id)
+                      const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _confirmDeleteItem(item),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -115,89 +251,66 @@ class _ManageItemsPageState extends State<ManageItemsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Items'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchItems,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columnSpacing: 16.0,
-                  columns: const [
-                    DataColumn(label: Text('ID')),
-                    DataColumn(label: Text('Item Name')),
-                    DataColumn(label: Text('Notes')),
-                    DataColumn(label: Text('Actions')),
-                  ],
-                  rows: _items.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    Item item = entry.value;
-                    return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>(
-                          (Set<WidgetState> states) {
-                            return index % 2 == 0
-                                ? const Color.fromARGB(255, 61, 61, 61) // cor para as linhas pares (mais escuras)
-                                : const Color.fromARGB(255, 8, 8, 8); // cor para as linhas ímpares (um pouco mais clara)
-                          },
-                        ),
-                      cells: [
-                        DataCell(Text(item.id.toString())),
-                        DataCell(Text(item.item ?? 'No Name')),
-                        DataCell(Text(item.obs ?? '')),
-                        DataCell(Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.visibility),
-                              onPressed: () => _viewItemDetails(item),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _openEditItemDialog(item),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () => _confirmDeleteItem(item),
-                            ),
-                          ],
-                        )),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ElevatedButton(
-                  onPressed: _currentPage > 1
-                      ? () {
-                          setState(() {
-                            _currentPage--;
-                            _fetchItems();
-                          });
-                        }
-                      : null,
-                  child: const Text('Previous'),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _currentPage++;
-                      _fetchItems();
-                    });
-                  },
-                  child: const Text('Next'),
-                ),
+                if (!_isLoading && !_hasError && _items.isNotEmpty) ...[
+                  Expanded(child: _buildDataTable()),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _currentPage > 1
+                            ? () {
+                                setState(() {
+                                  _currentPage--;
+                                  _fetchItems();
+                                });
+                              }
+                            : null,
+                        child: const Text('Previous'),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _items.length == _itemsPerPage
+                            ? () {
+                                setState(() {
+                                  _currentPage++;
+                                  _fetchItems();
+                                });
+                              }
+                            : null,
+                        child: const Text('Next'),
+                      ),
+                    ],
+                  ),
+                ],
+                if (_isLoading) Expanded(child: _buildLoadingIndicator()),
+                if (_hasError) Expanded(child: _buildErrorWidget()),
+                if (!_isLoading && !_hasError && _items.isEmpty)
+                  const Center(child: Text('No items found')),
               ],
             ),
-          ],
-        ),
+          ),
+          if (_isLoading)
+            const ModalBarrier(
+              dismissible: false,
+              color: Colors.black54,
+            ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddItemDialog,

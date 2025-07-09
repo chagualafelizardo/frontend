@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:app/controllers/menu_app_controller.dart';
@@ -21,43 +22,81 @@ class _LoginPageState extends State<LoginPage> {
   String _passwordErrorMessage = '';
   String _generalErrorMessage = '';
   bool _obscurePassword = true;
+  bool _isLoading = false; // Novo estado para controlar o carregamento
+  bool _showReconnectDialog = false;
 
-  Future<void> login(
-      BuildContext context, String email, String password) async {
+  Future<void> login(BuildContext context, String email, String password) async {
     setState(() {
+      _isLoading = true;
       _emailErrorMessage = '';
       _passwordErrorMessage = '';
       _generalErrorMessage = '';
+      _showReconnectDialog = false;
     });
 
-    if (email.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       setState(() {
-        _emailErrorMessage = 'Please enter your email.';
+        _isLoading = false;
+        if (email.isEmpty) _emailErrorMessage = 'Please enter your email.';
+        if (password.isEmpty) _passwordErrorMessage = 'Please enter your password.';
       });
-    }
-
-    if (password.isEmpty) {
-      setState(() {
-        _passwordErrorMessage = 'Please enter your password.';
-      });
-    }
-
-    if (_emailErrorMessage.isNotEmpty || _passwordErrorMessage.isNotEmpty) {
       return;
     }
 
     try {
-      final user = await LoginService.checkUser(email, password);
+      final user = await LoginService.checkUser(email, password)
+          .timeout(const Duration(seconds: 30)); // Timeout de 30 segundos
+      
       if (!mounted) return;
 
+      setState(() => _isLoading = false);
       handleLoginResult(context, user);
+    } on TimeoutException {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _showReconnectDialog = true;
+      });
     } catch (error) {
       print('Error during login: $error');
+      if (!mounted) return;
       setState(() {
-        _generalErrorMessage =
-            'An error occurred during login. Please try again.';
+        _isLoading = false;
+        _generalErrorMessage = 'An error occurred during login. Please try again.';
       });
     }
+  }
+
+  // Adicione este método para mostrar o diálogo de reconexão
+  void _showReconnectPrompt(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Connection Timeout'),
+          content: const Text('The connection to the server timed out. Would you like to try again?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('No'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() => _showReconnectDialog = false);
+              },
+            ),
+            TextButton(
+              child: const Text('Yes'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() => _showReconnectDialog = false);
+                // Tenta reconectar automaticamente
+                login(context, _emailController.text, _passwordController.text);
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void handleLoginResult(BuildContext context, Map<String, dynamic>? user) {
@@ -89,6 +128,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showReconnectDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showReconnectPrompt(context);
+      });
+    }
     return Scaffold(
       body: Stack(
         children: [
@@ -196,21 +240,32 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 10),
         ElevatedButton(
-          onPressed: () {
-            login(context, _emailController.text, _passwordController.text);
-          },
+          onPressed: _isLoading
+              ? null // Desabilita o botão durante o carregamento
+              : () {
+                  login(context, _emailController.text, _passwordController.text);
+                },
           style: ElevatedButton.styleFrom(
             shape: const StadiumBorder(),
             padding: const EdgeInsets.symmetric(vertical: 16),
             backgroundColor: Colors.orangeAccent,
           ),
-          child: const Text(
-            "Login",
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  "Login",
+                  style: TextStyle(
+                    fontSize: 20,
+                    color: Colors.white,
+                  ),
+                ),
         ),
       ],
     );

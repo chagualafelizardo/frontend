@@ -36,7 +36,6 @@ class PaymentAndDeliveryLocation extends StatefulWidget {
 class _PaymentAndDeliveryLocationState extends State<PaymentAndDeliveryLocation> {
   final VehicleHistoryRentService _rentHistoryService = VehicleHistoryRentService(dotenv.env['BASE_URL']!);
   final ReservaService _reservaService =  ReservaService(dotenv.env['BASE_URL']!);
-  final VeiculoService _veiculoService =  VeiculoService(dotenv.env['BASE_URL']!);
 
   bool _isLoadingRentValue = false;
   
@@ -348,57 +347,41 @@ void _onPickupMapTap(LatLng position) {
     );
   }
 
-  Future<void> _submitPayment() async {
-  debugPrint('=== INICIANDO _submitPayment ===');
-  
-  if (!_formKey.currentState!.validate()) {
-    debugPrint('Validação do formulário falhou');
-    return;
-  }
-
-  if (_pickupLocation == null || _returnLocation == null) {
-    debugPrint('Locais de pickup/return não selecionados');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select pickup and return locations')),
-    );
-    return;
-  }
-
-  try {
-    final String? notes = _notesController.text.isNotEmpty 
-        ? _notesController.text 
-        : null;
-    debugPrint('Notas: ${notes ?? "null"}');
-
-    // Log dos valores antes de criar o pagamento
-    debugPrint('Valores do pagamento:');
-    debugPrint('valorTotal: ${_amountController.text}');
-    debugPrint('data: ${_dateController.text}');
-    debugPrint('userId: ${widget.userId}');
-    debugPrint('reservaId: ${widget.reservaId}');
-
-  /* Registar o pagamento da reserva */
-    final payment = PagamentoReserva(
-      valorTotal: double.parse(_amountController.text),
-      data: DateTime.parse(_dateController.text),
-      obs: notes,
-      userId: widget.userId,
-      reservaId: widget.reservaId,
-    );
-
-    debugPrint('=== ANTES DE CHAMAR createPagamentoReserva ===');
-    debugPrint('Pagamento.toJson(): ${payment.toJson()}');
+  Future<bool> _submitPayment() async {
+    debugPrint('=== INICIANDO _submitPayment ===');
     
-    await _paymentService.createPagamentoReserva(payment);
-    debugPrint('Pagamento criado com sucesso');
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('Validação do formulário falhou');
+      return false;
+    }
 
-    /* Processo de Pagamento Confirmacao  */
+    if (_pickupLocation == null || _returnLocation == null) {
+      debugPrint('Locais de pickup/return não selecionados');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select pickup and return locations')),
+      );
+      return false;
+    }
+
+    try {
+      final String? notes = _notesController.text.isNotEmpty 
+          ? _notesController.text 
+          : null;
+
+      final payment = PagamentoReserva(
+        valorTotal: double.parse(_amountController.text),
+        data: DateTime.parse(_dateController.text),
+        obs: notes,
+        userId: widget.userId,
+        reservaId: widget.reservaId,
+      );
+      
+      await _paymentService.createPagamentoReserva(payment);
       await _reservaService.updateIsPaid(
-          reservaId: widget.reservaId,
-          isPaid: 'Paid',
-    );
+        reservaId: widget.reservaId,
+        isPaid: 'Paid',
+      );
 
-    /* Iniciar o registo dos locais de entrega e recolha do veiculo */
       final driveDeliver = DriveDeliver(
         date: DateTime.now(),
         deliver: 'Yes',
@@ -410,23 +393,14 @@ void _onPickupMapTap(LatLng position) {
         reservaId: widget.reservaId,
       );
 
-      debugPrint('Sending driveDeliver: ${driveDeliver.toJson()}');
-
       await _driveDeliverService.createDriveDeliver(driveDeliver);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment and locations registered successfully!')),
-      );
-
-      Navigator.pop(context, true);
+      return true;
     } catch (e) {
-      debugPrint('=== ERRO CAPTURADO ===');
-      debugPrint('Tipo do erro: ${e.runtimeType}');
-      debugPrint('Mensagem: ${e.toString()}');
-      
+      debugPrint('Error: ${e.toString()}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
+      return false;
     }
   }
 
@@ -706,10 +680,80 @@ void _onPickupMapTap(LatLng position) {
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _submitPayment,
-                child: const Text('Register Payment'),
-              ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Confirm Payment'),
+                        content: const Text('Are you sure you want to register this payment and locations?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Confirm'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirmed != true) return;
+
+                    // Mostrar loading
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const Center(child: CircularProgressIndicator()),
+                    );
+
+                    try {
+                      final success = await _submitPayment();
+                      
+                      // Fechar o loading
+                      if (mounted) Navigator.pop(context);
+                      
+                      if (success && mounted) {
+                        // Mostrar mensagem de sucesso
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Payment registered successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                        
+                        // Voltar para a tela anterior SEM fechar a stack toda
+                        if (mounted) {
+                          Navigator.of(context).pop(true); // Retorna 'true' para indicar sucesso
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) Navigator.pop(context);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Colors.green,
+                  ),
+                  child: const Text(
+                    'Register Payment',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

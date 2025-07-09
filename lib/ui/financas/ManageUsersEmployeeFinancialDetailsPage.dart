@@ -20,7 +20,9 @@ class _ManageUsersEmployeeFinancialDetailsPageState extends State<ManageUsersEmp
   List<UserBase64> _users = [];
   String _searchQuery = '';
   bool _isGridView = true;
-  
+  bool _isLoading = false;
+  bool _hasError = false;
+
   @override
   void initState() {
     super.initState();
@@ -28,25 +30,60 @@ class _ManageUsersEmployeeFinancialDetailsPageState extends State<ManageUsersEmp
   }
 
   Future<void> _fetchUsers() async {
+    // Ativa o estado de loading
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+
     try {
       final List<dynamic> userJsonList = await userService.getUsers();
-
-      setState(() {
-        _users = userJsonList.map((userJson) {
-          if (userJson is Map<String, dynamic>) {
+      
+      // Processa os usuários em paralelo para melhor performance
+      final users = await Future.wait(
+        userJsonList.map((userJson) async {
+          try {
+            if (userJson is! Map<String, dynamic>) {
+              debugPrint('Invalid user format: ${userJson.runtimeType}');
+              return null;
+            }
             return UserBase64.fromJson(userJson);
-          } else {
-            print('Unexpected type for userJson: ${userJson.runtimeType}');
-            throw TypeError();
+          } catch (e) {
+            debugPrint('Error processing user: $e');
+            return null;
           }
-        }).toList();
-      });
-    } catch (e, stackTrace) {
-      print('Error fetching users: $e');
-      print('Stack trace: $stackTrace');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to fetch users.')),
+        }),
       );
+
+      // Remove usuários nulos (que falharam no processamento)
+      final validUsers = users.whereType<UserBase64>().toList();
+
+      if (mounted) {
+        setState(() {
+          _users = validUsers;
+        });
+      }
+
+    } catch (e, stackTrace) {
+      debugPrint('Error fetching users: $e\n$stackTrace');
+      
+      if (mounted) {
+        setState(() => _hasError = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to load users'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _fetchUsers,
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -182,12 +219,12 @@ class _ManageUsersEmployeeFinancialDetailsPageState extends State<ManageUsersEmp
   }
 
   @override
+  @override
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      title: const Text('Manage Users'),
+      title: const Text('Manage Employees Financial Details'),
       actions: [
-        // Botões para alternar entre ListView e GridView na barra de título
         ToggleButtons(
           isSelected: [!_isGridView, _isGridView],
           onPressed: (int index) {
@@ -202,175 +239,208 @@ Widget build(BuildContext context) {
         ),
       ],
     ),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
+    body: _buildBodyContent(),
+  );
+}
+
+Widget _buildBodyContent() {
+  // Estado de carregamento
+  if (_isLoading && _users.isEmpty) {
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  // Estado de erro
+  if (_hasError && _users.isEmpty) {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 16),
-          Expanded(
-            child: _isGridView
-                ? GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 5, // Número de colunas no Grid
-                      crossAxisSpacing: 8.0,
-                      mainAxisSpacing: 8.0,
-                    ),
-                    itemCount: _users.length,
-                    itemBuilder: (context, index) {
-                      final user = _users[index];
-                      return Card(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildImage(user.imgBase64),
-                            Text(user.username),
-                            Text(user.firstName ?? 'N/A'),
-                            Text(user.lastName ?? 'N/A'),
-                            Text(user.gender ?? 'N/A'),
-                            Text(DateFormat('yyyy-MM-dd').format(user.birthdate).toString()),
-                            Text(user.email),
-                            Text(user.address ?? 'No address provided'),
-                            Text(user.neighborhood ?? 'N/A'),
-                            Text(user.phone1 ?? 'N/A'),
-                            Text(user.phone2 ?? 'N/A'),
-                            Text(user.state ?? 'N/A'),
-                            // Botão de operação
-                            Tooltip(
-                              message: 'Add Bank Details',
-                              child: IconButton(
-                                icon: const Icon(Icons.add),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return Dialog(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10.0),
-                                        ),
-                                        child: SizedBox(
-                                          width: 600,
-                                          height: 400,
-                                          child: ManageBankDetailsPage(
-                                            service: BankDetailsService(
-                                              baseUrl: dotenv.env['BASE_URL']!,
-                                              userID: user.id, 
-                                              username: '${user.firstName} ${user.lastName}',
-                                            ), 
-                                            userID: user.id,
-                                            username: '${user.firstName} ${user.lastName}',
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
+          const Text('Failed to load users'),
+          ElevatedButton(
+            onPressed: _fetchUsers,
+            child: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Conteúdo principal (mantendo sua estrutura original)
+  return Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Expanded(
+          child: _isGridView ? _buildOriginalGridView() : _buildOriginalListView(),
+        ),
+      ],
+    ),
+  );
+}
+
+// Mantendo seus métodos originais sem modificações
+Widget _buildOriginalGridView() {
+  return GridView.builder(
+    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 5,
+      crossAxisSpacing: 8.0,
+      mainAxisSpacing: 8.0,
+    ),
+    itemCount: _users.length,
+    itemBuilder: (context, index) {
+      final user = _users[index];
+      return Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildImage(user.imgBase64),
+            Text(user.username),
+            Text(user.firstName ?? 'N/A'),
+            Text(user.lastName ?? 'N/A'),
+            Text(user.gender ?? 'N/A'),
+            Text(DateFormat('yyyy-MM-dd').format(user.birthdate).toString()),
+            Text(user.email),
+            Text(user.address ?? 'No address provided'),
+            Text(user.neighborhood ?? 'N/A'),
+            Text(user.phone1 ?? 'N/A'),
+            Text(user.phone2 ?? 'N/A'),
+            Text(user.state ?? 'N/A'),
+            Tooltip(
+              message: 'Add Bank Details',
+              child: IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return Dialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                        child: SizedBox(
+                          width: 600,
+                          height: 400,
+                          child: ManageBankDetailsPage(
+                            service: BankDetailsService(
+                              baseUrl: dotenv.env['BASE_URL']!,
+                              userID: user.id, 
+                              username: '${user.firstName} ${user.lastName}',
+                            ), 
+                            userID: user.id,
+                            username: '${user.firstName} ${user.lastName}',
+                          ),
                         ),
                       );
                     },
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        columnSpacing: 12.0,
-                        columns: const [
-                          DataColumn(label: Text('User image')),
-                          DataColumn(label: Text('ID')),
-                          DataColumn(label: Text('Username')),
-                          DataColumn(label: Text('First Name')),
-                          DataColumn(label: Text('Last Name')),
-                          DataColumn(label: Text('Gender')),
-                          DataColumn(label: Text('Birthdate')),
-                          DataColumn(label: Text('Email')),
-                          DataColumn(label: Text('Address')),
-                          DataColumn(label: Text('Neighborhood')),
-                          DataColumn(label: Text('Phone 1')),
-                          DataColumn(label: Text('Phone 2')),
-                          DataColumn(label: Text('State')),
-                          DataColumn(label: Text('Actions')),
-                        ],
-                        rows: _users.asMap().entries.map((entry) {
-                          int index = entry.key;
-                          UserBase64 user = entry.value;
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
-                          return DataRow(
-                            color: WidgetStateProperty.resolveWith<Color?>(
-                              (Set<WidgetState> states) {
-                                return index % 2 == 0
-                                    ? const Color.fromARGB(255, 15, 15, 15)
-                                    : const Color.fromARGB(255, 33, 34, 34);
-                              },
-                            ),
-                            cells: [
-                              DataCell(
-                                SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: _buildImage(user.imgBase64),
+// Mantendo seu ListView original
+Widget _buildOriginalListView() {
+  return SingleChildScrollView(
+    scrollDirection: Axis.vertical,
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 12.0,
+        columns: const [
+          DataColumn(label: Text('User image')),
+          DataColumn(label: Text('ID')),
+          DataColumn(label: Text('Username')),
+          DataColumn(label: Text('First Name')),
+          DataColumn(label: Text('Last Name')),
+          DataColumn(label: Text('Gender')),
+          DataColumn(label: Text('Birthdate')),
+          DataColumn(label: Text('Email')),
+          DataColumn(label: Text('Address')),
+          DataColumn(label: Text('Neighborhood')),
+          DataColumn(label: Text('Phone 1')),
+          DataColumn(label: Text('Phone 2')),
+          DataColumn(label: Text('State')),
+          DataColumn(label: Text('Actions')),
+        ],
+        rows: _users.asMap().entries.map((entry) {
+          int index = entry.key;
+          UserBase64 user = entry.value;
+
+          return DataRow(
+            color: WidgetStateProperty.resolveWith<Color?>(
+              (Set<WidgetState> states) {
+                return index % 2 == 0
+                    ? const Color.fromARGB(255, 15, 15, 15)
+                    : const Color.fromARGB(255, 33, 34, 34);
+              },
+            ),
+            cells: [
+              DataCell(
+                SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: _buildImage(user.imgBase64),
+                ),
+              ),
+              DataCell(Text(user.id.toString())),
+              DataCell(Text(user.username)),
+              DataCell(Text(user.firstName ?? 'N/A')),
+              DataCell(Text(user.lastName ?? 'N/A')),
+              DataCell(Text(user.gender ?? 'N/A')),
+              DataCell(Text(DateFormat('yyyy-MM-dd').format(user.birthdate).toString())),
+              DataCell(Text(user.email)),
+              DataCell(Text(user.address ?? 'No address provided')),
+              DataCell(Text(user.neighborhood ?? 'N/A')),
+              DataCell(Text(user.phone1 ?? 'N/A')),
+              DataCell(Text(user.phone2 ?? 'N/A')),
+              DataCell(Text(user.state ?? 'N/A')),
+              DataCell(
+                Row(
+                  children: [
+                    Tooltip(
+                      message: 'Add Bank Details',
+                      child: IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Dialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
                                 ),
-                              ),
-                              DataCell(Text(user.id.toString())),
-                              DataCell(Text(user.username)),
-                              DataCell(Text(user.firstName ?? 'N/A')),
-                              DataCell(Text(user.lastName ?? 'N/A')),
-                              DataCell(Text(user.gender ?? 'N/A')),
-                              DataCell(Text(DateFormat('yyyy-MM-dd').format(user.birthdate).toString())),
-                              DataCell(Text(user.email)),
-                              DataCell(Text(user.address ?? 'No address provided')),
-                              DataCell(Text(user.neighborhood ?? 'N/A')),
-                              DataCell(Text(user.phone1 ?? 'N/A')),
-                              DataCell(Text(user.phone2 ?? 'N/A')),
-                              DataCell(Text(user.state ?? 'N/A')),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    Tooltip(
-                                      message: 'Add Bank Details',
-                                      child: IconButton(
-                                        icon: const Icon(Icons.add),
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (BuildContext context) {
-                                              return Dialog(
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(10.0),
-                                                ),
-                                                child: SizedBox(
-                                                  width: 600,
-                                                  height: 400,
-                                                  child: ManageBankDetailsPage(
-                                                    service: BankDetailsService(
-                                                      baseUrl: dotenv.env['BASE_URL']!,
-                                                      userID: user.id, 
-                                                      username: '${user.firstName} ${user.lastName}',
-                                                    ), 
-                                                    userID: user.id,
-                                                    username: '${user.firstName} ${user.lastName}',
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ],
+                                child: SizedBox(
+                                  width: 600,
+                                  height: 400,
+                                  child: ManageBankDetailsPage(
+                                    service: BankDetailsService(
+                                      baseUrl: dotenv.env['BASE_URL']!,
+                                      userID: user.id, 
+                                      username: '${user.firstName} ${user.lastName}',
+                                    ), 
+                                    userID: user.id,
+                                    username: '${user.firstName} ${user.lastName}',
+                                  ),
                                 ),
-                              ),
-                            ],
+                              );
+                            },
                           );
-                        }).toList(),
+                        },
                       ),
                     ),
-                  ),
-          ),
-        ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     ),
   );

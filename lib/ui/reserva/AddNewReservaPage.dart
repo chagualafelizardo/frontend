@@ -35,6 +35,7 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
   final Map<veiculo_models.Veiculo, TextEditingController> _dateControllers = {};
   String _searchQuery = '';
   bool _isGridView = false;
+  bool _isCreatingReserva = false; // Adicione esta linha
 
   final VeiculoService _veiculoService = VeiculoService(dotenv.env['BASE_URL']!);
   final UserServiceReserva _userService = UserServiceReserva(dotenv.env['BASE_URL']!);
@@ -99,51 +100,95 @@ class _AddNewReservaFormState extends State<AddNewReservaForm> {
   }
 
   Future<void> _createReserva(veiculo_models.Veiculo veiculo) async {
-    if (_selectedDates.containsKey(veiculo) &&
-        _destinationControllers[veiculo]!.text.isNotEmpty &&
-        _numberOfDaysControllers[veiculo]!.text.isNotEmpty &&
-        _selectedUsers.containsKey(veiculo) &&
-        _selectedUsers[veiculo] != null) {
-      try {
-        final selectedDate = _selectedDates[veiculo]!;
-        final selectedDateUTC = selectedDate.toUtc();
+  // Verificar se todos os campos obrigatórios estão preenchidos
+    if (_selectedDates[veiculo] == null ||
+        _destinationControllers[veiculo]!.text.isEmpty ||
+        _numberOfDaysControllers[veiculo]!.text.isEmpty ||
+        _selectedUsers[veiculo] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all required fields')),
+      );
+      return;
+    }
 
-        print('Creating reservation with date (Local): ${selectedDate.toLocal().toShortDateString()}');
-        print('Creating reservation with date (UTC): ${selectedDateUTC.toIso8601String()}');
+    // Validar número de dias
+    final numberOfDays = int.tryParse(_numberOfDaysControllers[veiculo]!.text);
+    if (numberOfDays == null || numberOfDays <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid number of days')),
+      );
+      return;
+    }
 
-        await ReservaService(dotenv.env['BASE_URL']!).createReserva(
-          date: selectedDate,
-          destination: _destinationControllers[veiculo]!.text,
-          numberOfDays: int.parse(_numberOfDaysControllers[veiculo]!.text),
-          userID: _selectedUsers[veiculo]!.id,
-          clientID: _selectedUsers[veiculo]!.id,
-          veiculoID: veiculo.id,
-          state: 'Not Confirmed', 
-          inService: 'No',
-          isPaid: 'Not Paid',
-        );
+    setState(() => _isCreatingReserva = true);
 
+    try {
+      // Mostrar diálogo de carregamento
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('Creating reservation for ${veiculo.marca} ${veiculo.modelo}...'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Criar a reserva
+      await ReservaService(dotenv.env['BASE_URL']!).createReserva(
+        date: _selectedDates[veiculo]!,
+        destination: _destinationControllers[veiculo]!.text,
+        numberOfDays: numberOfDays,
+        userID: _selectedUsers[veiculo]!.id,
+        clientID: _selectedUsers[veiculo]!.id,
+        veiculoID: veiculo.id,
+        state: 'Not Confirmed',
+        inService: 'No',
+        isPaid: 'Not Paid',
+      );
+
+      // Fechar diálogo e mostrar sucesso
+      if (mounted) {
+        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reservation created successfully!')),
-        );
-
-        setState(() {
-          _selectedDates.remove(veiculo);
-          _destinationControllers[veiculo]!.clear();
-          _numberOfDaysControllers[veiculo]!.clear();
-          _dateControllers[veiculo]!.clear();
-          _selectedUsers.remove(veiculo);
-        });
-      } catch (e) {
-        print('Error creating Reservation: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error creating reservation')),
+          const SnackBar(
+            content: Text('Reservation created successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields.')),
-      );
+
+      // Limpar os campos
+      setState(() {
+        _selectedDates.remove(veiculo);
+        _destinationControllers[veiculo]!.clear();
+        _numberOfDaysControllers[veiculo]!.clear();
+        _dateControllers[veiculo]!.clear();
+        _selectedUsers.remove(veiculo);
+      });
+
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingReserva = false);
+      }
     }
   }
 
@@ -451,27 +496,27 @@ Future<void> _showAddClientDialog() async {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: SizedBox(
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        _createReserva(veiculo);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    flex: 1,
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isCreatingReserva ? null : () {
+                          _createReserva(veiculo);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: const Text('Reserve'),
                       ),
-                      child: const Text('Reserve'),
                     ),
                   ),
-                ),
               ],
             ),
           ],

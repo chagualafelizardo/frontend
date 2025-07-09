@@ -4,12 +4,13 @@ import 'package:app/services/PostoService.dart';
 
 class AddNewPostoForm extends StatefulWidget {
   final PostoService postoService;
-  final Function onPostoAdded;
+  final VoidCallback onPostoAdded;
 
-  const AddNewPostoForm({super.key, 
+  const AddNewPostoForm({
+    Key? key,
     required this.postoService,
     required this.onPostoAdded,
-  });
+  }) : super(key: key);
 
   @override
   _AddNewPostoFormState createState() => _AddNewPostoFormState();
@@ -17,22 +18,62 @@ class AddNewPostoForm extends StatefulWidget {
 
 class _AddNewPostoFormState extends State<AddNewPostoForm> {
   final _formKey = GlobalKey<FormState>();
-  String _nomePosto = '';
-  String _endereco = '';
-  String _telefone = '';
-  String _obs = '';
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _enderecoController = TextEditingController();
+  final TextEditingController _telefoneController = TextEditingController();
+  final TextEditingController _obsController = TextEditingController();
+  bool _isLoading = false;
+
+  Future<void> _addPosto() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() => _isLoading = true);
+
+      final newPosto = Posto(
+        id: 0,
+        nomePosto: _nomeController.text.trim(),
+        endereco: _enderecoController.text.trim(),
+        telefone: int.tryParse(_telefoneController.text.trim()) ?? 0,
+        obs: _obsController.text.trim(),
+      );
+
+      try {
+        await widget.postoService.addPosto(newPosto);
+        
+        if (!mounted) return;
+        
+        // Primeiro fecha o diálogo
+        Navigator.of(context).pop();
+        
+        // Depois chama o callback
+        widget.onPostoAdded();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Add New Posto'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
+            children: [
               TextFormField(
+                controller: _nomeController,
                 decoration: const InputDecoration(labelText: 'Nome Posto'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -40,11 +81,9 @@ class _AddNewPostoFormState extends State<AddNewPostoForm> {
                   }
                   return null;
                 },
-                onSaved: (value) {
-                  _nomePosto = value!;
-                },
               ),
               TextFormField(
+                controller: _enderecoController,
                 decoration: const InputDecoration(labelText: 'Endereço'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -52,12 +91,11 @@ class _AddNewPostoFormState extends State<AddNewPostoForm> {
                   }
                   return null;
                 },
-                onSaved: (value) {
-                  _endereco = value!;
-                },
               ),
               TextFormField(
+                controller: _telefoneController,
                 decoration: const InputDecoration(labelText: 'Telefone'),
+                keyboardType: TextInputType.phone,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter the phone number';
@@ -67,47 +105,43 @@ class _AddNewPostoFormState extends State<AddNewPostoForm> {
                   }
                   return null;
                 },
-                onSaved: (value) {
-                  _telefone = value!;
-                },
               ),
               TextFormField(
+                controller: _obsController,
                 decoration: const InputDecoration(labelText: 'Observações'),
-                onSaved: (value) {
-                  _obs = value ?? '';
-                },
               ),
             ],
           ),
         ),
       ),
-      actions: <Widget>[
+      actions: [
         TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        TextButton(
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              _formKey.currentState!.save();
-              Posto newPosto = Posto(
-                id: 0,
-                nomePosto: _nomePosto,
-                endereco: _endereco,
-                telefone: int.parse(_telefone),
-                obs: _obs,
-              );
-              widget.postoService.addPosto(newPosto).then((_) {
-                widget.onPostoAdded();
-                Navigator.of(context).pop();
-              });
-            }
-          },
-          child: const Text('Add'),
+        ElevatedButton(
+          onPressed: _isLoading ? null : _addPosto,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Add'),
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _enderecoController.dispose();
+    _telefoneController.dispose();
+    _obsController.dispose();
+    super.dispose();
   }
 }

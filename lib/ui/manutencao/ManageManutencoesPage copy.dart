@@ -26,149 +26,54 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
   int _currentPage = 1;
   final int _itemsPerPage = 10;
 
-
-  bool _isLoadingManutencoes = false;
-  bool _isLoadingDetalhes = false;
-  bool _isLoadingItens = false;
-  bool _hasErrorManutencoes = false;
-  bool _hasErrorDetalhes = false;
-  bool _hasErrorItens = false;
-
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    _fetchManutencoes();
+    _fetchDetalhesManutencoes(); // Buscar detalhes de manutenção ao iniciar
   }
-
-  Future<void> _loadInitialData() async {
-    await _fetchManutencoes();
-    await _fetchDetalhesManutencoes();
-  }
-
 
   Future<void> _fetchManutencoes() async {
-    if (!mounted) return;
-    
-    setState(() {
-      _isLoadingManutencoes = true;
-      _hasErrorManutencoes = false;
-    });
-
     try {
       List<Manutencao> manutencoes = await manutencaoService.fetchManutencoes();
-      if (!mounted) return;
-      
       setState(() {
-        _manutencoes = manutencoes.where((m) => m.dataSaida == null).toList();
-        _manutencoesConcluidas = manutencoes.where((m) => m.dataSaida != null).toList();
-        _isLoadingManutencoes = false;
+        _manutencoes = manutencoes.where((m) => m.dataSaida == null).toList(); // Em manutenção
+        _manutencoesConcluidas = manutencoes.where((m) => m.dataSaida != null).toList(); // Concluídas
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _hasErrorManutencoes = true;
-        _isLoadingManutencoes = false;
-      });
+      print('Error fetching manutencoes: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load maintenance: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Failed to fetch maintenance records.')),
       );
     }
   }
 
   Future<void> _fetchDetalhesManutencoes() async {
-    if (!mounted) return;
-    
-    setState(() {
-      _isLoadingDetalhes = true;
-      _hasErrorDetalhes = false;
-    });
-
     try {
       List<DetalhesManutencao> detalhes = await detalhesManutencaoService.fetchDetalhesManutencao();
-      if (!mounted) return;
-      
       setState(() {
         _detalhesManutencoes = detalhes;
-        _isLoadingDetalhes = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _hasErrorDetalhes = true;
-        _isLoadingDetalhes = false;
-      });
+      print('Error fetching maintenance details: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load maintenance details: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Failed to fetch maintenance details.')),
       );
     }
   }
 
   Future<void> _fetchItens() async {
-    if (!mounted) return;
-    
-    setState(() {
-      _isLoadingItens = true;
-      _hasErrorItens = false;
-    });
-
     try {
       List<VehicleSupply> item = await vehicleSupplyService.getAllVehicleSupplies();
-      if (!mounted) return;
-      
       setState(() {
         _itens = item;
-        _isLoadingItens = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _hasErrorItens = true;
-        _isLoadingItens = false;
-      });
+      print('Error fetching items: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load items: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Failed to fetch items.')),
       );
     }
-  }
-
-  Widget _buildLoadingIndicator() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading data...'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorWidget(String errorMessage, VoidCallback onRetry) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 48),
-          const SizedBox(height: 16),
-          Text(errorMessage, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _openAddManutencaoDialog() {
@@ -487,198 +392,149 @@ class _ManageManutencoesPageState extends State<ManageManutencoesPage> {
   }
 
   @override
-  @override
-Widget build(BuildContext context) {
-  return DefaultTabController(
-    length: 2,
-    child: Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Maintenance'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadInitialData,
-            tooltip: 'Refresh',
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2, // Número de abas
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Manage Maintenance'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'In Progress'), // Primeira aba
+              Tab(text: 'Completed'), // Segunda aba
+            ],
           ),
-        ],
-        bottom: const TabBar(
-          tabs: [
-            Tab(text: 'In Progress'),
-            Tab(text: 'Completed'),
+        ),
+        body: TabBarView(
+          children: [
+            // Primeira aba: Veículos em manutenção
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columnSpacing: 16.0,
+                        columns: const [
+                          DataColumn(label: Text('ID')),
+                          DataColumn(label: Text('Entry Date')),
+                          DataColumn(label: Text('Exit Date')),
+                          DataColumn(label: Text('Vehicle ID')),
+                          DataColumn(label: Text('Workshop ID')),
+                          DataColumn(label: Text('Service ID')),
+                          DataColumn(label: Text('Notes')),
+                          DataColumn(label: Text('Actions')),
+                        ],
+                        rows: _manutencoes.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final manutencao = entry.value;
+                          return DataRow(
+                            color: WidgetStateProperty.resolveWith<Color>(
+                              (Set<WidgetState> states) {
+                                return _getRowColor(index);
+                              },
+                            ),
+                            cells: [
+                              DataCell(Text(manutencao.id.toString())),
+                              DataCell(Text(manutencao.dataEntrada.toString())),
+                              DataCell(Text(manutencao.dataSaida?.toString() ?? 'N/A')),
+                              DataCell(Text(manutencao.veiculoID.toString())),
+                              DataCell(Text(manutencao.oficinaID.toString())),
+                              DataCell(Text(manutencao.atendimentoID.toString())),
+                              DataCell(Text(manutencao.obs ?? 'N/A')),
+                              DataCell(Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.visibility),
+                                    onPressed: () => _viewManutencaoDetails(manutencao),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _viewManutencaoDetails(manutencao),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () => _confirmDeleteManutencao(manutencao),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_forward),
+                                    onPressed: () => _openAdvanceManutencaoDialog(manutencao),
+                                  ),
+                                ],
+                              )),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Segunda aba: Detalhes de Manutenção
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columnSpacing: 16.0,
+                        columns: const [
+                          DataColumn(label: Text('ID')),
+                          DataColumn(label: Text('Item')),
+                          DataColumn(label: Text('Notes')),
+                          DataColumn(label: Text('Maintenance ID')),
+                          DataColumn(label: Text('Actions')),
+                        ],
+                        rows: _detalhesManutencoes.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final detalhe = entry.value;
+                          return DataRow(
+                            color: WidgetStateProperty.resolveWith<Color?>(
+                              (Set<WidgetState> states) {
+                                return index.isEven ? const Color.fromARGB(255, 12, 12, 12) : const Color.fromARGB(255, 58, 58, 58); // Alternando cores
+                              },
+                            ),
+                            cells: [
+                              DataCell(Text(detalhe.id.toString())),
+                              DataCell(Text(detalhe.item)),
+                              DataCell(Text(detalhe.obs ?? 'N/A')),
+                              DataCell(Text(detalhe.manutencaoID.toString())),
+                              DataCell(Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.visibility),
+                                    onPressed: () => _viewDetalhesManutencao(detalhe),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _viewDetalhesManutencao(detalhe),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () => _confirmDeleteDetalhesManutencao(detalhe),
+                                  ),
+                                ],
+                              )),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      body: Stack(
-        children: [
-          TabBarView(
-            children: [
-              // First Tab: In Progress Maintenance
-              _buildMaintenanceTab(),
-
-              // Second Tab: Maintenance Details
-              _buildDetailsTab(),
-            ],
-          ),
-          if (_isLoadingManutencoes || _isLoadingDetalhes || _isLoadingItens)
-            const ModalBarrier(
-              dismissible: false,
-              color: Colors.black54,
-            ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddManutencaoDialog,
-        tooltip: 'Add New Maintenance',
-        child: const Icon(Icons.add),
-      ),
-    ),
-  );
-}
-
-Widget _buildMaintenanceTab() {
-  if (_isLoadingManutencoes) {
-    return _buildLoadingIndicator();
-  }
-  if (_hasErrorManutencoes) {
-    return _buildErrorWidget(
-      'Failed to load maintenance records',
-      _fetchManutencoes,
     );
   }
-  return Padding(
-    padding: const EdgeInsets.all(16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 16.0,
-              columns: const [
-                DataColumn(label: Text('ID')),
-                DataColumn(label: Text('Entry Date')),
-                DataColumn(label: Text('Exit Date')),
-                DataColumn(label: Text('Vehicle ID')),
-                DataColumn(label: Text('Workshop ID')),
-                DataColumn(label: Text('Service ID')),
-                DataColumn(label: Text('Notes')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: _manutencoes.map((manutencao) {
-                return DataRow(
-                  color: WidgetStateProperty.resolveWith<Color>(
-                    (states) => _getRowColor(_manutencoes.indexOf(manutencao)),
-                  ),
-                  cells: [
-                    DataCell(Text(manutencao.id?.toString() ?? 'N/A')),
-                    DataCell(Text(manutencao.dataEntrada?.toString() ?? 'N/A')),
-                    DataCell(Text(manutencao.dataSaida?.toString() ?? 'N/A')),
-                    DataCell(Text(manutencao.veiculoID?.toString() ?? 'N/A')),
-                    DataCell(Text(manutencao.oficinaID?.toString() ?? 'N/A')),
-                    DataCell(Text(manutencao.atendimentoID?.toString() ?? 'N/A')),
-                    DataCell(Text(manutencao.obs ?? 'N/A')),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.visibility),
-                            onPressed: () => _viewManutencaoDetails(manutencao),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => _viewManutencaoDetails(manutencao),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _confirmDeleteManutencao(manutencao),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_forward),
-                            onPressed: () => _openAdvanceManutencaoDialog(manutencao),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildDetailsTab() {
-  if (_isLoadingDetalhes) {
-    return _buildLoadingIndicator();
-  }
-  if (_hasErrorDetalhes) {
-    return _buildErrorWidget(
-      'Failed to load maintenance details',
-      _fetchDetalhesManutencoes,
-    );
-  }
-  return Padding(
-    padding: const EdgeInsets.all(16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 16.0,
-              columns: const [
-                DataColumn(label: Text('ID')),
-                DataColumn(label: Text('Item')),
-                DataColumn(label: Text('Notes')),
-                DataColumn(label: Text('Maintenance ID')),
-                DataColumn(label: Text('Actions')),
-              ],
-              rows: _detalhesManutencoes.map((detalhe) {
-                return DataRow(
-                  color: WidgetStateProperty.resolveWith<Color?>(
-                    (states) => _detalhesManutencoes.indexOf(detalhe).isEven
-                        ? const Color.fromARGB(255, 12, 12, 12)
-                        : const Color.fromARGB(255, 58, 58, 58),
-                  ),
-                  cells: [
-                    DataCell(Text(detalhe.id?.toString() ?? 'N/A')),
-                    DataCell(Text(detalhe.item)),
-                    DataCell(Text(detalhe.obs ?? 'N/A')),
-                    DataCell(Text(detalhe.manutencaoID?.toString() ?? 'N/A')),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.visibility),
-                            onPressed: () => _viewDetalhesManutencao(detalhe),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => _viewDetalhesManutencao(detalhe),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () => _confirmDeleteDetalhesManutencao(detalhe),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 }

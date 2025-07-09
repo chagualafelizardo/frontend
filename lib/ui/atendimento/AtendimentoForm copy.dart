@@ -82,21 +82,21 @@ class _AtendimentoFormState extends State<AtendimentoForm> with SingleTickerProv
 
   // Metodo para enviar email
   void sendEmail() async {
-    final smtpServer = gmail('felizardo.chaguala@gmail.com', 'Imediatamente'); // Seu e-mail e senha
+  final smtpServer = gmail('felizardo.chaguala@gmail.com', 'Imediatamente'); // Seu e-mail e senha
 
-    final message = Message()
-      ..from = Address('fchaguala@yahoo.com.br', 'Felizardo Chaguala') // Remetente
-      ..recipients.add('fchaguala@yahoo.com.br') // Destinatário
-      ..subject = 'Confirmação do pagamento da Reserva' // Assunto
-      ..text = 'Confirmação do pagamento da Reserva e entrega da viatura ao cliente!'; // Corpo do e-mail
+  final message = Message()
+    ..from = Address('fchaguala@yahoo.com.br', 'Felizardo Chaguala') // Remetente
+    ..recipients.add('fchaguala@yahoo.com.br') // Destinatário
+    ..subject = 'Confirmação do pagamento da Reserva' // Assunto
+    ..text = 'Confirmação do pagamento da Reserva e entrega da viatura ao cliente!'; // Corpo do e-mail
 
-    try {
-      final sendReport = await send(message, smtpServer);
-      print('E-mail enviado: ' + sendReport.toString());
-    } catch (e) {
-      print('Erro ao enviar: $e');
-    }
+  try {
+    final sendReport = await send(message, smtpServer);
+    print('E-mail enviado: ' + sendReport.toString());
+  } catch (e) {
+    print('Erro ao enviar: $e');
   }
+}
 
   Future<DateTime?> _selectDateTime(
       BuildContext context, DateTime? initialDate) async {
@@ -335,44 +335,11 @@ Future<void> _fetchItensEntrega() async {
           
           // Botão de submissão
           ElevatedButton(
-            onPressed: () async {
-              // Validar formulário
-              if (!_formKey.currentState!.validate()) {
-                return;
-              }
-              _formKey.currentState!.save();
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                _formKey.currentState!.save();
 
-              // Mostrar diálogo de confirmação
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Confirm Service Start'),
-                  content: const Text('Are you sure you want to start this service process?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Confirm'),
-                    ),
-                  ],
-                ),
-              );
-
-              if (confirm != true) return;
-
-              // Mostrar indicador de carregamento
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(child: CircularProgressIndicator()),
-              );
-
-              try {
-                // Preparar documentos e itens selecionados
-                final selectedDocuments = _selectedDocuments
+                List<Map<String, dynamic>> selectedDocuments = _selectedDocuments
                     .where((doc) => doc['type'] != null && doc['bytes'] != null)
                     .map((doc) => {
                           'itemDescription': doc['type'],
@@ -380,13 +347,13 @@ Future<void> _fetchItensEntrega() async {
                         })
                     .toList();
 
-                final selectedItems = _itemChecklist.entries
+                List<String> selectedItems = _itemChecklist.entries
                     .where((entry) => entry.value)
                     .map((entry) => entry.key)
                     .toList();
 
-                // Registrar atendimento
-                await _atendimentoService.addCompleteAtendimento(
+                _atendimentoService
+                    .addCompleteAtendimento(
                   DateTime.now(),
                   dataSaida: _dataSaida!,
                   dataChegada: _dataChegada!,
@@ -395,64 +362,34 @@ Future<void> _fetchItensEntrega() async {
                   reserveID: widget.reserva.id,
                   checkedItems: selectedItems,
                   documents: selectedDocuments,
-                );
+                )
+                    .then((_) async {
+                  widget.onProcessStart(
+                    _dataSaida!,
+                    _dataChegada!,
+                    _destino!,
+                    _kmInicial!,
+                  );
 
-                // Chamar callback
-                widget.onProcessStart(
-                  _dataSaida!,
-                  _dataChegada!,
-                  _destino!,
-                  _kmInicial!,
-                );
+                // Chamar o metodo para enviar os e-mail
+                sendEmail();
 
-                // Enviar e-mail de confirmação
-                 sendEmail();
-
-                // Fechar diálogo de carregamento
-                if (mounted) Navigator.pop(context);
-
-                // Mostrar mensagem de sucesso
-                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Service process started successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
+                        content: Text(
+                            'The service for this vehicle has already started.')),
                   );
-                }
 
-                // Fechar o diálogo/modal atual
-                if (mounted) Navigator.pop(context);
-
-              } catch (error) {
-                debugPrint('Error starting service: $error');
-                
-                // Fechar diálogo de carregamento
-                if (mounted) Navigator.pop(context);
-
-                // Mostrar mensagem de erro
-                if (mounted) {
+                  Navigator.of(context).pop();
+                }).catchError((error) {
+                  debugPrint('Error adding service: $error');
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to start process: ${error.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
+                    SnackBar(content: Text('Failed to start process: $error')),
                   );
-                }
+                });
               }
             },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              backgroundColor: Colors.green,
-            ),
-            child: const Text(
-              'Start Process',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+            child: const Text('Start Process'),
           ),
         ],
       ),

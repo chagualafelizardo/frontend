@@ -113,7 +113,7 @@ class SideMenu extends StatelessWidget {
             children: [
               ListTile(
                 leading: Icon(Icons.list),
-                title: Text("Employee Financial Details"),
+                title: Text("Employees Financial Details"),
                 onTap: () => onMenuSelected('/finance'),
               ),
               ListTile(
@@ -136,8 +136,8 @@ class SideMenu extends StatelessWidget {
               ),
               ListTile(
                 leading: Icon(Icons.list),
-                title: Text("Fines recorded"),
-                onTap: () => onMenuSelected('/finesrecorded'),
+                title: Text("Fines registered"),
+                onTap: () => onMenuSelected('/finesregistered'),
               ),
             ],
           ),

@@ -7,7 +7,8 @@ class EditItemForm extends StatefulWidget {
   final Item item;
   final Function onItemUpdated;
 
-  const EditItemForm({super.key, 
+  const EditItemForm({
+    super.key,
     required this.itemService,
     required this.item,
     required this.onItemUpdated,
@@ -19,52 +20,61 @@ class EditItemForm extends StatefulWidget {
 
 class _EditItemFormState extends State<EditItemForm> {
   final _formKey = GlobalKey<FormState>();
-  late String _itemName;
-  String? _itemNotes;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _itemName = widget.item.item ?? '';
-    _itemNotes = widget.item.obs;
+    _nameController.text = widget.item.item ?? '';
+    _notesController.text = widget.item.obs ?? '';
   }
 
-  Future<void> _editItem() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 
-    _formKey.currentState!.save();
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      Item updatedItem = Item(
+      final updatedItem = Item(
         id: widget.item.id,
-        item: _itemName,
-        obs: _itemNotes,
+        item: _nameController.text,
+        obs: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
 
       await widget.itemService.updateItem(updatedItem);
+      
+      if (!mounted) return;
+      
       widget.onItemUpdated();
-
+      Navigator.of(context).pop();
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Item "${updatedItem.item}" updated successfully!')),
+          content: Text('"${updatedItem.item}" updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
       );
-
-      Navigator.of(context).pop();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update item. Please try again.')),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -72,49 +82,86 @@ class _EditItemFormState extends State<EditItemForm> {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Edit Item',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                initialValue: _itemName,
-                decoration: const InputDecoration(labelText: 'Item Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an item name.';
-                  }
-                  return null;
-                },
-                onSaved: (value) {
-                  _itemName = value ?? '';
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                initialValue: _itemNotes,
-                decoration: const InputDecoration(labelText: 'Notes (Optional)'),
-                onSaved: (value) {
-                  _itemNotes = value;
-                },
-              ),
-              const SizedBox(height: 16),
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      onPressed: _editItem,
-                      child: const Text('Update Item'),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 400,
+          minWidth: 300,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Edit Item',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-            ],
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Item Name*',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        ),
+                        validator: (value) => value?.isEmpty ?? true ? 'Required field' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _notesController,
+                        decoration: const InputDecoration(
+                          labelText: 'Notes',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        ),
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: _isLoading ? null : _submitForm,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('UPDATE'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
